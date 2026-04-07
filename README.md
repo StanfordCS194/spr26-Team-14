@@ -13,15 +13,17 @@ We're so excited to have you check out our repo! Check out [Developer Environmen
 As people increasingly move to AI chatbots, companies need ways to track and improve how their products and services are mentioned and discussed by these tools. We're building **Perception**, a platform that gives companies visibility into AI-generated brand mentions and actionable insights to improve how they appear in AI responses.
 
 ## Our Team
-| Arun | Welton | Krish | Connor | Charlotte |
+| <img src="assets/arun.jpeg" height="100" alt="Arun Moorthy"/> | — | <img src="assets/charlotte.jpeg" height="100" alt="Arun Moorthy"/> | <img src="assets/krish.png" height="100" alt="Krish Maniar"/> | — |
 |:--:|:--:|:--:|:--:|:--:|
-| amoorth2@stanford.edu | welton@stanford.edu | kmaniar@stanford.edu | cfogarty@stanford.edu | ckyy@stanford.edu |
+| Arun Moorthy | Welton Wang | Charlotte Yan | Krish Maniar | Connor Fogarty |
+| amoorth2@stanford.edu | welton@stanford.edu | ckyy@stanford.edu | kmaniar@stanford.edu | cfogarty@stanford.edu |
 
 ## Team Member Matrix
 Member | Areas of Expertise | Personal Traits | Gaps/Weaknesses
 --- | --- | --- | --- 
-Arun Moorthy | | | 
-Welton Wang | | | 
+Arun Moorthy | Software development, customer feedback, scaling applications | Nice, kind, confident | Sometimes can be too agreeable 
+Welton Wang | Python, design, infrastructure, products | Problem solver | Math, writing 
+Charlotte Yan | Designing benchmarks, computer use agents, ethics | Detail oriented | Physics
 Krish Maniar | | | 
 Connor Fogarty | | | 
-Charlotte Yan | | | 
+
