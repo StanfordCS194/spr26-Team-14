@@ -13,7 +13,7 @@ We're so excited to have you check out our repo! Check out [Developer Environmen
 As people increasingly move to AI chatbots, companies need ways to track and improve how their products and services are mentioned and discussed by these tools. We're building **Perception**, a platform that gives companies visibility into AI-generated brand mentions and actionable insights to improve how they appear in AI responses.
 
 ## Our Team
-| <img src="assets/arun.jpeg" height="100" alt="Arun Moorthy"/> | — | <img src="assets/charlotte.jpeg" height="100" alt="Arun Moorthy"/> | <img src="assets/krish.png" height="100" alt="Krish Maniar"/> | — |
+| <img src="assets/arun.jpeg" height="100" alt="Arun Moorthy"/> | <img src="assets/welton.png" height="100" alt="Welton"/> | <img src="assets/charlotte.jpeg" height="100" alt="Welton"/> | <img src="assets/krish.png" height="100" alt="Krish Maniar"/> | <img src="assets/connor.jpeg" height="100" alt="Connor"/> |
 |:--:|:--:|:--:|:--:|:--:|
 | Arun Moorthy | Welton Wang | Charlotte Yan | Krish Maniar | Connor Fogarty |
 | amoorth2@stanford.edu | welton@stanford.edu | ckyy@stanford.edu | kmaniar@stanford.edu | cfogarty@stanford.edu |
@@ -24,6 +24,6 @@ Member | Areas of Expertise | Personal Traits | Gaps/Weaknesses
 Arun Moorthy | Software development, customer feedback, scaling applications | Nice, kind, confident | Sometimes can be too agreeable 
 Welton Wang | Python, design, infrastructure, products | Problem solver | Math, writing 
 Charlotte Yan | Designing benchmarks, computer use agents, ethics | Detail oriented | Physics
-Krish Maniar | | | 
-Connor Fogarty | | | 
+Krish Maniar | Backend, databases | Nice, chill | Too much of a perfectionist
+Connor Fogarty | Database design, production code | Easygoing | Sometimes can be too easygoing
 
