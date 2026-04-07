@@ -13,7 +13,7 @@ We're so excited to have you check out our repo! Check out [Developer Environmen
 As people increasingly move to AI chatbots, companies need ways to track and improve how their products and services are mentioned and discussed by these tools. We're building **Perception**, a platform that gives companies visibility into AI-generated brand mentions and actionable insights to improve how they appear in AI responses.
 
 ## Our Team
-| <img src="assets/arun.jpeg" alt="Arun Moorthy"/> | <img src="assets/welton.png" alt="Welton Wang"/> | <img src="assets/charlotte.jpeg" alt="Charlotte Yan"/> | <img src="assets/krish.png" alt="Krish Maniar"/> | <img src="assets/connor.png" alt="Connor Fogarty"/> |
+| <img src="assets/arun.jpeg" width="100" height="100" alt="Arun Moorthy"/> | <img src="assets/welton.png" width="100" height="100" alt="Welton Wang"/> | <img src="assets/charlotte.jpeg" width="100" height="100" alt="Charlotte Yan"/> | <img src="assets/krish.png" width="100" height="100" alt="Krish Maniar"/> | <img src="assets/connor.png" width="100" height="100" alt="Connor Fogarty"/> |
 |:--:|:--:|:--:|:--:|:--:|
 | Arun Moorthy | Welton Wang | Charlotte Yan | Krish Maniar | Connor Fogarty |
 | amoorth2@stanford.edu | welton@stanford.edu | ckyy@stanford.edu | kmaniar@stanford.edu | cfogarty@stanford.edu |
