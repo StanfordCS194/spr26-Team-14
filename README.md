@@ -27,3 +27,11 @@ Charlotte Yan | Designing benchmarks, computer use agents, ethics | Detail orien
 Krish Maniar | Backend, databases | Nice, chill | Too much of a perfectionist
 Connor Fogarty | Database design, production code | Easygoing | Sometimes can be too easygoing
 
+## Product Requirements Document (PRD)
+https://docs.google.com/document/d/1_7ihu_LTOc90rLPz_Z4Qi2hujh1mniR2B4RlztDDm_A/edit?tab=t.0#heading=h.mzf2knh2cjc1
+
+## Weekly Schedule
+<img src="assets/weekly_schedule.png" height="100"/>
+
+## Source control with git (write name here)
+Charlotte
