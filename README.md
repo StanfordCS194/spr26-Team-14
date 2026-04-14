@@ -27,3 +27,4 @@ Charlotte Yan | Designing benchmarks, computer use agents, ethics | Detail orien
 Krish Maniar | Backend, databases | Nice, chill | Too much of a perfectionist
 Connor Fogarty | Database design, production code | Easygoing | Sometimes can be too easygoing
 
+Arun Moorthy
