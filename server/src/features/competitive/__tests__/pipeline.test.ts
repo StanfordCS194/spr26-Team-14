@@ -7,7 +7,7 @@ describe("runCompetitivePipeline", () => {
     resetStore();
   });
 
-  test("runs identical prompts across account + five competitors", async () => {
+  test("runs 20 prompt panels (10 brand + 10 domain) across six brands", async () => {
     const accountBrand = { id: "brand-account", name: "YourBrand" };
     const competitors = ["A", "B", "C", "D", "E"].map((name) => ({
       id: `brand-${name}`,
@@ -38,5 +38,5 @@ describe("runCompetitivePipeline", () => {
     expect(result.comparisons.length).toBe(20);
     const brandIds = new Set(result.answers.map((answer) => answer.brandId));
     expect(brandIds.size).toBe(6);
-  });
+  }, 180_000);
 });

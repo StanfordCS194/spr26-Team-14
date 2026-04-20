@@ -30,7 +30,7 @@ describe("competitive routes", () => {
     expect(response.status).toBe(400);
   });
 
-  test("demo: Sephora cohort with five beauty competitors", async () => {
+  test("demo: account brand + five competitors full benchmark run", async () => {
     const setRes = await app.request("/competitive-sets", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -66,5 +66,5 @@ describe("competitive routes", () => {
     expect(overviewRes.status).toBe(200);
     const overview = await overviewRes.json();
     expect(overview.rows.length).toBeGreaterThan(0);
-  });
+  }, 180_000);
 });

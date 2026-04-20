@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { store, getNowIso } from "../../db/store";
-import { generateBrandAnswer, judgeComparativeOutputs } from "../../lib/openai";
+import type { ProgressReporter } from "./progress";
+import { generateBrandAnswer, judgeComparativeOutputs } from "../../lib/llm";
 import type { AIAnswer, CohortRun, CompetitiveDelta, PromptKind, PromptRun } from "./types";
+
+const PROMPT_RUN_CONCURRENCY = 4;
 
 const cohortRunSchema = z.object({
   accountBrandId: z.string().min(1),
@@ -59,17 +62,20 @@ function createPromptRuns(
   return runs;
 }
 
-async function createAnswersForPromptRun(promptRun: PromptRun, brandIds: string[]): Promise<AIAnswer[]> {
-  const answers: AIAnswer[] = [];
+async function createAnswersForPromptRun(
+  promptRun: PromptRun,
+  brandIds: string[],
+  reportProgress?: ProgressReporter,
+): Promise<AIAnswer[]> {
   const createdAt = getNowIso();
-
-  for (const brandId of brandIds) {
+  return Promise.all(
+    brandIds.map(async (brandId) => {
     const brand = store.brands.get(brandId);
     if (!brand) {
       throw new Error(`Brand not found for id ${brandId}`);
     }
-    const answerText = await generateBrandAnswer({ brand, promptRun });
-    const answer: AIAnswer = {
+      const answerText = await generateBrandAnswer({ brand, promptRun, reportProgress });
+      const answer: AIAnswer = {
       id: crypto.randomUUID(),
       promptRunId: promptRun.id,
       brandId,
@@ -77,13 +83,41 @@ async function createAnswersForPromptRun(promptRun: PromptRun, brandIds: string[
       createdAt,
     };
     store.answers.set(answer.id, answer);
-    answers.push(answer);
+      return answer;
+    }),
+  );
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex]!, currentIndex);
+    }
   }
 
-  return answers;
+  const workerCount = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
 }
 
 export async function runCompetitivePipeline(input: CohortRun): Promise<{
+  promptRuns: PromptRun[];
+  answers: AIAnswer[];
+  comparisons: CompetitiveDelta[];
+}>;
+export async function runCompetitivePipeline(
+  input: CohortRun,
+  options?: { reportProgress?: ProgressReporter },
+): Promise<{
   promptRuns: PromptRun[];
   answers: AIAnswer[];
   comparisons: CompetitiveDelta[];
@@ -97,14 +131,14 @@ export async function runCompetitivePipeline(input: CohortRun): Promise<{
   const promptRuns = createPromptRuns(promptSet.id, promptSet.brandSpecificPrompts, promptSet.domainPrompts, input.models);
 
   const allAnswers: AIAnswer[] = [];
-  const comparisons: CompetitiveDelta[] = [];
-
-  for (const promptRun of promptRuns) {
-    const answers = await createAnswersForPromptRun(promptRun, brandIds);
+  const comparisons = await mapWithConcurrency(promptRuns, PROMPT_RUN_CONCURRENCY, async (promptRun) => {
+    const answers = await createAnswersForPromptRun(promptRun, brandIds, options?.reportProgress);
     allAnswers.push(...answers);
-    const comparison = await judgeComparativeOutputs({ promptRun, answers });
+    return judgeComparativeOutputs({ promptRun, answers, reportProgress: options?.reportProgress });
+  });
+
+  for (const comparison of comparisons) {
     store.comparisons.push(comparison);
-    comparisons.push(comparison);
   }
 
   return { promptRuns, answers: allAnswers, comparisons };
