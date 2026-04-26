@@ -37,11 +37,18 @@ function createInitialProgressBoxes(labels: Record<string, string>) {
   );
 }
 
-export function CompetitivePage() {
+export function CompetitivePage({
+  businessProfileId,
+  businessName,
+}: {
+  businessProfileId?: string;
+  businessName?: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [accountBrandId, setAccountBrandId] = useState<string>("");
-  const [accountBrandName, setAccountBrandName] = useState<string>("Sephora");
+  const [accountBrandName, setAccountBrandName] = useState<string>(businessName ?? "Sephora");
   const [competitorBrandIds, setCompetitorBrandIds] = useState<string[]>([]);
+  const [savedCompetitors, setSavedCompetitors] = useState<string[]>([]);
   const [brandLabels, setBrandLabels] = useState<Record<string, string>>({});
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
@@ -60,6 +67,32 @@ export function CompetitivePage() {
       progressSourceRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    setAccountBrandName(businessName ?? "Sephora");
+  }, [businessName]);
+
+  useEffect(() => {
+    if (!businessProfileId) {
+      return;
+    }
+    fetch(`${API_BASE}/business-profiles/${businessProfileId}/competitors`)
+      .then((res) => (res.ok ? res.json() : { competitorNames: [] }))
+      .then((body: { competitorNames: string[] }) => setSavedCompetitors(body.competitorNames))
+      .catch(() => setSavedCompetitors([]));
+  }, [businessProfileId]);
+
+  async function saveCompetitors(names: string[]) {
+    setSavedCompetitors(names);
+    if (!businessProfileId) {
+      return;
+    }
+    await fetch(`${API_BASE}/business-profiles/${businessProfileId}/competitors`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ competitorNames: names.map((name) => name.trim()) }),
+    });
+  }
 
   function closeProgressStream() {
     progressSourceRef.current?.close();
@@ -153,6 +186,7 @@ export function CompetitivePage() {
     try {
       const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const windowEndAfterRun = () => new Date().toISOString();
+      await saveCompetitors(input.competitorNames);
 
       const setRes = await fetch(`${API_BASE}/competitive-sets`, {
         method: "POST",
@@ -245,7 +279,7 @@ export function CompetitivePage() {
 
   return (
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "Inter, Arial, sans-serif" }}>
-      <h1>Competitive Benchmarking — Demo</h1>
+      <h1>Competitive Benchmarking</h1>
       <p style={{ marginTop: 0 }}>
         Each run uses <strong>10 brand-specific prompts</strong> (with each retailer’s name) plus{" "}
         <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per retailer;
@@ -254,7 +288,13 @@ export function CompetitivePage() {
         <strong>SallyBeauty</strong>, and <strong>Olive Young</strong>.
       </p>
 
-      <CompetitiveSetPicker onCreate={createSet} busy={busy} />
+      <CompetitiveSetPicker
+        accountBrandName={businessName}
+        busy={busy}
+        competitorNames={savedCompetitors.length ? savedCompetitors : undefined}
+        onCreate={createSet}
+        onSave={saveCompetitors}
+      />
       {error && <p style={{ color: "crimson" }}>{error}</p>}
 
       {(Object.keys(progressByBrand).length > 0 || judgeLines.length > 0 || busy) && (
