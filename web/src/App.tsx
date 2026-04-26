@@ -27,7 +27,11 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
       </label>
       <label>
         Website
-        <input value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} />
+        <input
+          type="url"
+          value={form.website}
+          onChange={(event) => setForm({ ...form, website: event.target.value })}
+        />
       </label>
       <label>
         Description
@@ -37,7 +41,9 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
           rows={4}
         />
       </label>
-      <button disabled={!canSubmit}>Create profile</button>
+      <button type="submit" disabled={!canSubmit}>
+        Create profile
+      </button>
     </form>
   );
 }
