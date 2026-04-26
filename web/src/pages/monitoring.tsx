@@ -41,11 +41,21 @@ export function SentimentTrend() {
         <h3>Past 7 days</h3>
       </div>
       <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
+        {points.map((point) => (
+          <line
+            key={`grid-${point.date}`}
+            className="grid-line"
+            x1={point.x}
+            x2={point.x}
+            y1={padTop}
+            y2={height - padBottom}
+          />
+        ))}
         {yTicks.map((tick) => {
           const y = yForScore(tick);
           return (
             <g key={tick}>
-              <line className={tick === 0 ? "neutral-line" : "grid-line"} x1={padX} x2={width - padX} y1={y} y2={y} />
+              {tick === 0 && <line className="neutral-line" x1={padX} x2={width - padX} y1={y} y2={y} />}
               <text className="axis-label" x={padX - 12} y={y + 4} textAnchor="end">
                 {tick > 0 ? `+${tick}` : tick}
               </text>
