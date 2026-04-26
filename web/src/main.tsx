@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { CompetitivePage } from "./pages/competitive";
+import { App } from "./App";
 
 const root = document.getElementById("root");
 if (!root) {
@@ -9,6 +9,6 @@ if (!root) {
 
 createRoot(root).render(
   <React.StrictMode>
-    <CompetitivePage />
+    <App />
   </React.StrictMode>,
 );
