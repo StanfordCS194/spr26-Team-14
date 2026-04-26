@@ -1,14 +1,9 @@
-import OpenAI from "openai";
 import { z } from "zod";
 import type { ProgressReporter } from "../features/competitive/progress";
 import type { AIAnswer, Brand, ComparativeDelta, PromptRun } from "../features/competitive/types";
+import { callLLM, configuredLLMProvider, isLLMProviderConfigured, type LLMMessage } from "./llm-providers";
 
-type SupportedLLMProvider = "openai";
-
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
-const configuredProvider = (env.LLM_PROVIDER ?? "openai") as SupportedLLMProvider;
-const openAIApiKey = env.OPENAI_API_KEY;
-const openAIClient = configuredProvider === "openai" && openAIApiKey ? new OpenAI({ apiKey: openAIApiKey }) : null;
+const configuredProvider = configuredLLMProvider();
 
 const mentionSchema = z.object({
   brandId: z.string(),
@@ -29,20 +24,13 @@ const judgeOutputSchema = z.object({
 
 const BRAND_ANSWER_MAX_OUTPUT_TOKENS = 220;
 const JUDGE_MAX_OUTPUT_TOKENS = 900;
-const STREAM_FLUSH_CHARS = 140;
 
 function getProviderLabel() {
   return `llm:${configuredProvider}`;
 }
 
-function getStreamingClient() {
-  if (configuredProvider !== "openai") {
-    throw new Error(`Unsupported LLM provider: ${configuredProvider}`);
-  }
-  if (!openAIClient) {
-    return null;
-  }
-  return openAIClient;
+function shouldUseLocalMocks() {
+  return configuredProvider === "mock" || !isLLMProviderConfigured(configuredProvider);
 }
 
 function interpolateBrand(template: string, brandName: string) {
@@ -53,65 +41,35 @@ function compactLabel(value: string) {
   return value.replaceAll(/\s+/g, " ").trim().slice(0, 80);
 }
 
-function flushStreamBuffer(label: string, buffer: string, onDelta?: (text: string) => void) {
-  const text = buffer.trim();
-  if (!text) {
-    return;
-  }
-  console.log(`[${getProviderLabel()}] ${label}: ${text}`);
-  onDelta?.(text);
-}
-
 async function createStreamedResponse(input: {
   label: string;
   model: string;
   maxOutputTokens: number;
-  messages: Array<{ role: "system" | "user"; content: string }>;
+  messages: LLMMessage[];
   onStarted?: () => void;
   onDelta?: (text: string) => void;
   onCompleted?: () => void;
 }) {
-  const client = getStreamingClient();
-  if (!client) {
+  if (shouldUseLocalMocks()) {
     throw new Error(`${configuredProvider} client not configured.`);
   }
 
   console.log(`[${getProviderLabel()}] ${input.label}: started`);
-  input.onStarted?.();
-
-  const runner = client.responses.stream({
+  const outputText = await callLLM({
+    provider: configuredProvider,
     model: input.model,
-    max_output_tokens: input.maxOutputTokens,
-    input: input.messages,
+    maxOutputTokens: input.maxOutputTokens,
+    messages: input.messages,
+    prompt: input.messages.map((message) => message.content).join("\n\n"),
+    onStarted: input.onStarted,
+    onDelta: (text) => {
+      console.log(`[${getProviderLabel()}] ${input.label}: ${text}`);
+      input.onDelta?.(text);
+    },
+    onCompleted: input.onCompleted,
   });
-
-  let buffer = "";
-  let fullText = "";
-
-  runner.on("response.output_text.delta", (event) => {
-    fullText += event.delta;
-    buffer += event.delta;
-
-    let newlineIndex = buffer.indexOf("\n");
-    while (newlineIndex !== -1) {
-      flushStreamBuffer(input.label, buffer.slice(0, newlineIndex), input.onDelta);
-      buffer = buffer.slice(newlineIndex + 1);
-      newlineIndex = buffer.indexOf("\n");
-    }
-
-    if (buffer.length >= STREAM_FLUSH_CHARS) {
-      flushStreamBuffer(input.label, buffer, input.onDelta);
-      buffer = "";
-    }
-  });
-
-  const response = await runner.finalResponse();
-  flushStreamBuffer(input.label, buffer, input.onDelta);
   console.log(`[${getProviderLabel()}] ${input.label}: completed`);
-  input.onCompleted?.();
-  return typeof response.output_text === "string" && response.output_text.trim().length > 0
-    ? response.output_text
-    : fullText;
+  return outputText;
 }
 
 function extractJSONObject(text: string) {
@@ -154,7 +112,7 @@ export async function generateBrandAnswer(input: {
       ? interpolateBrand(input.promptRun.prompt, input.brand.name)
       : input.promptRun.prompt;
 
-  if (!getStreamingClient()) {
+  if (shouldUseLocalMocks()) {
     const kind = input.promptRun.promptKind;
     return `Mock perception summary for ${input.brand.name} (${kind}). "${questionText.slice(0, 90)}..."`;
   }
@@ -231,7 +189,7 @@ export async function judgeComparativeOutputs(input: {
   answers: AIAnswer[];
   reportProgress?: ProgressReporter;
 }): Promise<ComparativeDelta> {
-  if (!getStreamingClient()) {
+  if (shouldUseLocalMocks()) {
     const equalShare = 1 / input.answers.length;
     const shareOfVoiceByBrand: Record<string, number> = {};
     const sentimentByBrand: Record<string, number> = {};
