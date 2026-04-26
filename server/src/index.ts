@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { businessRoutes } from "./routes/business";
 import { competitiveRoutes } from "./routes/competitive";
 
 const app = new Hono();
@@ -13,6 +14,7 @@ app.use(
 );
 
 app.get("/health", (c) => c.json({ ok: true }));
+app.route("/", businessRoutes);
 app.route("/", competitiveRoutes);
 
 export default {
