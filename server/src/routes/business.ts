@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { businessProfiles } from "../db/business-profiles";
+import { monitoringPrompts } from "../db/monitoring-prompts";
+import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
 
 const profileSchema = z.object({
   name: z.string().trim().min(1),
@@ -21,7 +23,11 @@ businessRoutes.get("/business-profiles/:id", (c) => {
 
 businessRoutes.post("/business-profiles", async (c) => {
   const body = profileSchema.parse(await c.req.json());
-  return c.json(businessProfiles.create(body), 201);
+  const profile = businessProfiles.create(body);
+  if (process.env.DISABLE_ONBOARDING_PROMPT_GENERATION !== "1") {
+    void generateMonitoringPrompts(profile);
+  }
+  return c.json(profile, 201);
 });
 
 const competitorsSchema = z.object({
@@ -42,4 +48,30 @@ businessRoutes.put("/business-profiles/:id/competitors", async (c) => {
   }
   const body = competitorsSchema.parse(await c.req.json());
   return c.json({ competitorNames: businessProfiles.saveCompetitors(id, body.competitorNames) });
+});
+
+const promptSchema = z.object({
+  prompt: z.string().trim().min(8),
+});
+
+businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const state = monitoringPrompts.state(id);
+  return c.json({
+    status: state.monitoring_status,
+    error: state.error,
+    prompts: monitoringPrompts.list(id),
+  });
+});
+
+businessRoutes.post("/business-profiles/:id/monitoring-prompts", async (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const body = promptSchema.parse(await c.req.json());
+  return c.json(monitoringPrompts.add(id, body.prompt), 201);
 });
