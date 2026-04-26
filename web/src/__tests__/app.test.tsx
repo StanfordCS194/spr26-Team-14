@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { App, OnboardingForm, ProfileDashboard } from "../App";
-import { MonitoringPage } from "../pages/monitoring";
+import { MonitoringPage, SentimentTrend } from "../pages/monitoring";
 
 describe("app onboarding", () => {
   test("renders business profile fields", () => {
@@ -52,5 +52,10 @@ describe("app onboarding", () => {
       />,
     );
     expect(html.includes("Generating starter prompts")).toBeTrue();
+  });
+
+  test("renders monitoring sentiment chart after load", () => {
+    const html = renderToStaticMarkup(<SentimentTrend />);
+    expect(html.includes("7 day sentiment trend")).toBeTrue();
   });
 });

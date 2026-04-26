@@ -119,6 +119,61 @@ button:disabled {
   max-width: 1040px;
 }
 
+.sentiment-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: #fbfbf8;
+  border: 1px solid #e0e0da;
+  border-radius: 8px;
+}
+
+.sentiment-card h3 {
+  margin: 0;
+}
+
+.sentiment-chart {
+  width: 100%;
+  max-height: 230px;
+}
+
+.neutral-line {
+  stroke: #9ca3af;
+  stroke-dasharray: 6 6;
+  stroke-width: 2;
+}
+
+.trend-line {
+  stroke-linecap: round;
+  stroke-width: 5;
+}
+
+.trend-positive {
+  stroke: #16a34a;
+}
+
+.trend-negative {
+  stroke: #dc2626;
+}
+
+.trend-dot {
+  stroke: white;
+  stroke-width: 2;
+}
+
+.trend-dot-positive {
+  fill: #16a34a;
+}
+
+.trend-dot-negative {
+  fill: #dc2626;
+}
+
+.chart-label {
+  fill: #66665f;
+  font-size: 12px;
+}
+
 .panel h2,
 .topbar h1 {
   margin: 0;

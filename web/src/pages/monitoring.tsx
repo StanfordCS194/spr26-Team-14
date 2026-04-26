@@ -8,6 +8,57 @@ function sentimentLabel(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+const sentimentHistory = [-0.18, -0.08, 0.04, 0.12, 0.26, 0.18, -0.06].map((score, index) => ({
+  day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]!,
+  score,
+}));
+
+export function SentimentTrend() {
+  const width = 700;
+  const height = 190;
+  const pad = 28;
+  const midY = height / 2;
+  const points = sentimentHistory.map((item, index) => {
+    const x = pad + (index * (width - pad * 2)) / (sentimentHistory.length - 1);
+    const y = midY - item.score * 130;
+    return { ...item, x, y };
+  });
+
+  return (
+    <section className="sentiment-card">
+      <div>
+        <p className="muted">Overall Sentiment</p>
+        <h3>Past 7 days</h3>
+      </div>
+      <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
+        <line className="neutral-line" x1={pad} x2={width - pad} y1={midY} y2={midY} />
+        {points.slice(0, -1).map((point, index) => {
+          const next = points[index + 1]!;
+          const positive = (point.score + next.score) / 2 >= 0;
+          return (
+            <line
+              key={point.day}
+              className={positive ? "trend-line trend-positive" : "trend-line trend-negative"}
+              x1={point.x}
+              x2={next.x}
+              y1={point.y}
+              y2={next.y}
+            />
+          );
+        })}
+        {points.map((point) => (
+          <g key={point.day}>
+            <circle className={point.score >= 0 ? "trend-dot trend-dot-positive" : "trend-dot trend-dot-negative"} cx={point.x} cy={point.y} r="5" />
+            <text className="chart-label" x={point.x} y={height - 4} textAnchor="middle">
+              {point.day}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </section>
+  );
+}
+
 export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
   const [data, setData] = useState<MonitoringResponse | null>(null);
   const [newPrompt, setNewPrompt] = useState("");
@@ -70,6 +121,7 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
       <p className="muted">Monitoring</p>
       <h2>{profile.name}</h2>
       <p>Track the prompts where this business should appear in chatbot answers.</p>
+      <SentimentTrend />
 
       <table>
         <thead>
