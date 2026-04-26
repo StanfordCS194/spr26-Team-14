@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./app.css";
+import { CompetitivePage } from "./pages/competitive";
 import type { BusinessProfile } from "./types";
 
 const API_BASE =
@@ -175,21 +176,25 @@ export function ProfileDashboard({
           </button>
         </header>
 
-        <article className="panel">
-          <p className="muted">{page[1]}</p>
-          <h2>{profile.name}</h2>
-          <p>{page[2]}</p>
-          <dl>
-            <div>
-              <dt>Website</dt>
-              <dd>{profile.website}</dd>
-            </div>
-            <div>
-              <dt>Description</dt>
-              <dd>{profile.description}</dd>
-            </div>
-          </dl>
-        </article>
+        {activePage === "benchmarking" ? (
+          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+        ) : (
+          <article className="panel">
+            <p className="muted">{page[1]}</p>
+            <h2>{profile.name}</h2>
+            <p>{page[2]}</p>
+            <dl>
+              <div>
+                <dt>Website</dt>
+                <dd>{profile.website}</dd>
+              </div>
+              <div>
+                <dt>Description</dt>
+                <dd>{profile.description}</dd>
+              </div>
+            </dl>
+          </article>
+        )}
 
         {error && <p className="error">{error}</p>}
       </section>
