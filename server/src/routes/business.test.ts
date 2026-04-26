@@ -26,3 +26,20 @@ test("creates and lists business profiles", async () => {
   expect(listBody.profiles.some((profile: { id: string }) => profile.id === created.id)).toBe(true);
   expect(businessProfiles.get(created.id)?.website).toBe("https://acme.test");
 });
+
+test("saves competitors for a business profile", async () => {
+  const profile = businessProfiles.create({
+    name: `Bench ${crypto.randomUUID()}`,
+    website: "https://bench.test",
+    description: "Benchmarking test profile.",
+  });
+
+  const response = await app.request(`/business-profiles/${profile.id}/competitors`, {
+    method: "PUT",
+    body: JSON.stringify({ competitorNames: ["A", "B", "C", "D", "E"] }),
+    headers: { "content-type": "application/json" },
+  });
+
+  expect(response.status).toBe(200);
+  expect((await response.json()).competitorNames).toEqual(["A", "B", "C", "D", "E"]);
+});
