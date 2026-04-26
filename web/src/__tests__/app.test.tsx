@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { App, OnboardingForm, ProfileDashboard } from "../App";
+import { MonitoringPage } from "../pages/monitoring";
 
 describe("app onboarding", () => {
   test("renders business profile fields", () => {
@@ -36,5 +37,20 @@ describe("app onboarding", () => {
     );
     expect(html.includes("Benchmarking")).toBeTrue();
     expect(html.includes("Active business profile")).toBeTrue();
+  });
+
+  test("renders monitoring loading state", () => {
+    const html = renderToStaticMarkup(
+      <MonitoringPage
+        profile={{
+          id: "profile-1",
+          name: "Acme",
+          website: "https://acme.test",
+          description: "AI visibility software.",
+          createdAt: new Date().toISOString(),
+        }}
+      />,
+    );
+    expect(html.includes("Generating starter prompts")).toBeTrue();
   });
 });
