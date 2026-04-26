@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       // and the tab keeps loading. Disabling HMR fixes that (refresh the page after edits).
       hmr: false,
       warmup: {
-        clientFiles: ["./index.html", "./src/main.tsx", "./src/pages/competitive.tsx"],
+        clientFiles: ["./index.html", "./src/main.tsx", "./src/App.tsx"],
       },
       proxy: {
         "/api": {
