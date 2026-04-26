@@ -105,10 +105,6 @@ button:disabled {
   border-bottom: 1px solid #d8d8d2;
 }
 
-.topbar select {
-  max-width: 260px;
-}
-
 .panel {
   display: grid;
   gap: 12px;
@@ -157,9 +153,5 @@ dt {
   .topbar {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .topbar select {
-    max-width: none;
   }
 }
