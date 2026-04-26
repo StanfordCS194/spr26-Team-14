@@ -128,6 +128,9 @@ const providers: Record<LLMProviderName, LLMProvider> = {
 };
 
 export function configuredLLMProvider(): LLMProviderName {
+  if (env.NODE_ENV === "test") {
+    return "mock";
+  }
   return (env.LLM_PROVIDER as LLMProviderName | undefined) ?? "openai";
 }
 
