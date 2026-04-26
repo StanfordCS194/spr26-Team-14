@@ -46,6 +46,27 @@ const getProfile = db.query<BusinessProfileRow, [string]>(`
   WHERE id = ?
 `);
 
+interface CompetitorRow {
+  name: string;
+}
+
+const deleteCompetitors = db.query<null, [string]>(`
+  DELETE FROM business_competitors
+  WHERE business_profile_id = ?
+`);
+
+const insertCompetitor = db.query<null, [string, number, string, string]>(`
+  INSERT INTO business_competitors (business_profile_id, position, name, updated_at)
+  VALUES (?, ?, ?, ?)
+`);
+
+const listCompetitors = db.query<CompetitorRow, [string]>(`
+  SELECT name
+  FROM business_competitors
+  WHERE business_profile_id = ?
+  ORDER BY position
+`);
+
 export const businessProfiles = {
   create(input: NewBusinessProfile) {
     const now = new Date().toISOString();
@@ -59,5 +80,18 @@ export const businessProfiles = {
   get(id: string) {
     const row = getProfile.get(id);
     return row ? fromRow(row) : null;
+  },
+
+  competitors(id: string) {
+    return listCompetitors.all(id).map((row) => row.name);
+  },
+
+  saveCompetitors(id: string, names: string[]) {
+    const now = new Date().toISOString();
+    db.transaction(() => {
+      deleteCompetitors.run(id);
+      names.forEach((name, index) => insertCompetitor.run(id, index, name, now));
+    })();
+    return this.competitors(id);
   },
 };
