@@ -8,19 +8,29 @@ function sentimentLabel(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-const sentimentHistory = [-0.18, -0.08, 0.04, 0.12, 0.26, 0.18, -0.06].map((score, index) => ({
-  day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]!,
-  score,
-}));
+const sentimentHistory = [-0.18, -0.08, 0.04, 0.12, 0.26, 0.18, -0.06].map((score, index) => {
+  const date = new Date();
+  date.setDate(date.getDate() - (6 - index));
+  return {
+    date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    score,
+  };
+});
+
+const yTicks = [-1, -0.5, 0, 0.5, 1];
 
 export function SentimentTrend() {
   const width = 700;
-  const height = 190;
-  const pad = 28;
-  const midY = height / 2;
+  const height = 220;
+  const padX = 48;
+  const padTop = 18;
+  const padBottom = 32;
+  const chartHeight = height - padTop - padBottom;
+  const yForScore = (score: number) => padTop + ((1 - score) / 2) * chartHeight;
+  const midY = yForScore(0);
   const points = sentimentHistory.map((item, index) => {
-    const x = pad + (index * (width - pad * 2)) / (sentimentHistory.length - 1);
-    const y = midY - item.score * 130;
+    const x = padX + (index * (width - padX * 2)) / (sentimentHistory.length - 1);
+    const y = yForScore(item.score);
     return { ...item, x, y };
   });
 
@@ -31,13 +41,23 @@ export function SentimentTrend() {
         <h3>Past 7 days</h3>
       </div>
       <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
-        <line className="neutral-line" x1={pad} x2={width - pad} y1={midY} y2={midY} />
+        {yTicks.map((tick) => {
+          const y = yForScore(tick);
+          return (
+            <g key={tick}>
+              <line className={tick === 0 ? "neutral-line" : "grid-line"} x1={padX} x2={width - padX} y1={y} y2={y} />
+              <text className="axis-label" x={padX - 12} y={y + 4} textAnchor="end">
+                {tick > 0 ? `+${tick}` : tick}
+              </text>
+            </g>
+          );
+        })}
         {points.slice(0, -1).map((point, index) => {
           const next = points[index + 1]!;
           const positive = (point.score + next.score) / 2 >= 0;
           return (
             <line
-              key={point.day}
+              key={point.date}
               className={positive ? "trend-line trend-positive" : "trend-line trend-negative"}
               x1={point.x}
               x2={next.x}
@@ -47,10 +67,10 @@ export function SentimentTrend() {
           );
         })}
         {points.map((point) => (
-          <g key={point.day}>
+          <g key={point.date}>
             <circle className={point.score >= 0 ? "trend-dot trend-dot-positive" : "trend-dot trend-dot-negative"} cx={point.x} cy={point.y} r="5" />
             <text className="chart-label" x={point.x} y={height - 4} textAnchor="middle">
-              {point.day}
+              {point.date}
             </text>
           </g>
         ))}

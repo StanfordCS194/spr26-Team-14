@@ -143,6 +143,11 @@ button:disabled {
   stroke-width: 2;
 }
 
+.grid-line {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+}
+
 .trend-line {
   stroke-linecap: round;
   stroke-width: 5;
@@ -170,6 +175,11 @@ button:disabled {
 }
 
 .chart-label {
+  fill: #66665f;
+  font-size: 12px;
+}
+
+.axis-label {
   fill: #66665f;
   font-size: 12px;
 }
