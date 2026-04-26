@@ -104,6 +104,36 @@ export function App() {
     );
   }
 
+  return (
+    <ProfileDashboard
+      activePage={activePage}
+      activeProfileId={activeProfileId}
+      error={error}
+      onAddProfile={() => setProfiles([])}
+      onSelectPage={setActivePage}
+      onSelectProfile={setActiveProfileId}
+      profiles={profiles}
+    />
+  );
+}
+
+export function ProfileDashboard({
+  activePage,
+  activeProfileId,
+  error,
+  onAddProfile,
+  onSelectPage,
+  onSelectProfile,
+  profiles,
+}: {
+  activePage: PageKey;
+  activeProfileId: string;
+  error?: string;
+  onAddProfile: () => void;
+  onSelectPage: (page: PageKey) => void;
+  onSelectProfile: (id: string) => void;
+  profiles: BusinessProfile[];
+}) {
   const profile = profiles.find((item) => item.id === activeProfileId) ?? profiles[0]!;
   const page = pages.find(([key]) => key === activePage) ?? pages[0];
 
@@ -113,7 +143,7 @@ export function App() {
         <strong>Perception</strong>
         <label>
           Section
-          <select value={activePage} onChange={(event) => setActivePage(event.target.value as PageKey)}>
+          <select value={activePage} onChange={(event) => onSelectPage(event.target.value as PageKey)}>
             {pages.map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
@@ -129,14 +159,18 @@ export function App() {
             <p className="muted">Business profile</p>
             <h1>{profile.name}</h1>
           </div>
-          <select value={profile.id} onChange={(event) => setActiveProfileId(event.target.value)}>
+          <select
+            aria-label="Active business profile"
+            value={profile.id}
+            onChange={(event) => onSelectProfile(event.target.value)}
+          >
             {profiles.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
           </select>
-          <button type="button" onClick={() => setProfiles([])}>
+          <button type="button" onClick={onAddProfile}>
             New profile
           </button>
         </header>
