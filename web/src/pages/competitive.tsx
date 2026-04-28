@@ -244,15 +244,14 @@ export function CompetitivePage() {
   }
 
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "Inter, Arial, sans-serif" }}>
-      <h1>Competitive Benchmarking — Demo</h1>
-      <p style={{ marginTop: 0 }}>
-        Each run uses <strong>10 brand-specific prompts</strong> (with each retailer’s name) plus{" "}
-        <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per retailer;
-        outputs are compared and rolled into share of voice and sentiment. Default slate:{" "}
-        <strong>Sephora</strong> vs <strong>Ulta</strong>, <strong>Bluemercury</strong>, <strong>SpaceNK</strong>,{" "}
-        <strong>SallyBeauty</strong>, and <strong>Olive Young</strong>.
-      </p>
+    <section className="page-frame">
+      <header className="page-header">
+        <h1>Competitive Benchmarking</h1>
+        <p>
+          Compare how AI answers describe your brand against five competitors, then surface share of voice, sentiment,
+          feature gaps, and whitespace opportunities.
+        </p>
+      </header>
 
       <CompetitiveSetPicker onCreate={createSet} busy={busy} />
       {error && <p style={{ color: "crimson" }}>{error}</p>}
@@ -339,6 +338,6 @@ export function CompetitivePage() {
             : "Run the benchmark to set the query window"}
         </p>
       </section>
-    </main>
+    </section>
   );
 }
