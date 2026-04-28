@@ -23,3 +23,23 @@ businessRoutes.post("/business-profiles", async (c) => {
   const body = profileSchema.parse(await c.req.json());
   return c.json(businessProfiles.create(body), 201);
 });
+
+const competitorsSchema = z.object({
+  competitorNames: z.array(z.string().trim().min(1)).length(5),
+});
+
+businessRoutes.get("/business-profiles/:id/competitors", (c) => {
+  if (!businessProfiles.get(c.req.param("id"))) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  return c.json({ competitorNames: businessProfiles.competitors(c.req.param("id")) });
+});
+
+businessRoutes.put("/business-profiles/:id/competitors", async (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const body = competitorsSchema.parse(await c.req.json());
+  return c.json({ competitorNames: businessProfiles.saveCompetitors(id, body.competitorNames) });
+});

@@ -18,6 +18,15 @@ export function runMigrations() {
       description TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS business_competitors (
+      business_profile_id TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (business_profile_id, position),
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
   `);
 }
 

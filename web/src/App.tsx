@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./app.css";
+import { CompetitivePage } from "./pages/competitive";
 import type { BusinessProfile } from "./types";
 
 const API_BASE =
@@ -142,6 +143,20 @@ export function ProfileDashboard({
       <aside className="sidebar">
         <strong>Perception</strong>
         <label>
+          Business
+          <select
+            aria-label="Active business profile"
+            value={profile.id}
+            onChange={(event) => onSelectProfile(event.target.value)}
+          >
+            {profiles.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           Section
           <select value={activePage} onChange={(event) => onSelectPage(event.target.value as PageKey)}>
             {pages.map(([key, label]) => (
@@ -159,37 +174,30 @@ export function ProfileDashboard({
             <p className="muted">Business profile</p>
             <h1>{profile.name}</h1>
           </div>
-          <select
-            aria-label="Active business profile"
-            value={profile.id}
-            onChange={(event) => onSelectProfile(event.target.value)}
-          >
-            {profiles.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
           <button type="button" onClick={onAddProfile}>
             New profile
           </button>
         </header>
 
-        <article className="panel">
-          <p className="muted">{page[1]}</p>
-          <h2>{profile.name}</h2>
-          <p>{page[2]}</p>
-          <dl>
-            <div>
-              <dt>Website</dt>
-              <dd>{profile.website}</dd>
-            </div>
-            <div>
-              <dt>Description</dt>
-              <dd>{profile.description}</dd>
-            </div>
-          </dl>
-        </article>
+        {activePage === "benchmarking" ? (
+          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+        ) : (
+          <article className="panel">
+            <p className="muted">{page[1]}</p>
+            <h2>{profile.name}</h2>
+            <p>{page[2]}</p>
+            <dl>
+              <div>
+                <dt>Website</dt>
+                <dd>{profile.website}</dd>
+              </div>
+              <div>
+                <dt>Description</dt>
+                <dd>{profile.description}</dd>
+              </div>
+            </dl>
+          </article>
+        )}
 
         {error && <p className="error">{error}</p>}
       </section>
