@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
+import type { z } from "zod";
 
 export type LLMProviderName = "mock" | "openai";
 
@@ -16,10 +18,18 @@ export interface LLMCallInput {
   onStarted?: () => void;
   prompt: string;
   provider?: LLMProviderName;
+  useSearch?: boolean;
+}
+
+export interface StructuredLLMCallInput<T> extends LLMCallInput {
+  mockValue?: T;
+  schema: z.ZodType<T>;
+  schemaName: string;
 }
 
 interface LLMProvider {
   call(input: Omit<LLMCallInput, "provider">): Promise<string>;
+  structured<T>(input: Omit<StructuredLLMCallInput<T>, "provider">): Promise<T>;
   configured(): boolean;
 }
 
@@ -44,6 +54,14 @@ const providers: Record<LLMProviderName, LLMProvider> = {
       input.onCompleted?.();
       return text;
     },
+    async structured(input) {
+      input.onStarted?.();
+      input.onCompleted?.();
+      if (input.mockValue !== undefined) {
+        return input.mockValue;
+      }
+      return input.schema.parse({});
+    },
   },
 
   openai: {
@@ -58,6 +76,7 @@ const providers: Record<LLMProviderName, LLMProvider> = {
         model: input.model ?? "gpt-4.1-mini",
         max_output_tokens: input.maxOutputTokens,
         input: input.messages ?? [{ role: "user", content: input.prompt }],
+        tools: input.useSearch ? [{ type: "web_search" }] : undefined,
       });
 
       let buffer = "";
@@ -88,10 +107,30 @@ const providers: Record<LLMProviderName, LLMProvider> = {
         ? response.output_text
         : fullText;
     },
+    async structured(input) {
+      if (!openAIClient) {
+        throw new Error("OpenAI client not configured.");
+      }
+
+      input.onStarted?.();
+      const response = await openAIClient.responses.parse({
+        model: input.model ?? "gpt-4.1-mini",
+        input: input.messages ?? [{ role: "user", content: input.prompt }],
+        text: {
+          format: zodTextFormat(input.schema, input.schemaName),
+        },
+        tools: input.useSearch ? [{ type: "web_search" }] : undefined,
+      } as Parameters<typeof openAIClient.responses.parse>[0]);
+      input.onCompleted?.();
+      return input.schema.parse(response.output_parsed);
+    },
   },
 };
 
 export function configuredLLMProvider(): LLMProviderName {
+  if (env.NODE_ENV === "test") {
+    return "mock";
+  }
   return (env.LLM_PROVIDER as LLMProviderName | undefined) ?? "openai";
 }
 
@@ -106,4 +145,13 @@ export async function callLLM(input: LLMCallInput) {
     throw new Error(`Unsupported LLM provider: ${providerName}`);
   }
   return provider.call(input);
+}
+
+export async function callStructuredLLM<T>(input: StructuredLLMCallInput<T>) {
+  const providerName = input.provider ?? configuredLLMProvider();
+  const provider = providers[providerName];
+  if (!provider) {
+    throw new Error(`Unsupported LLM provider: ${providerName}`);
+  }
+  return provider.structured(input);
 }
