@@ -115,6 +115,76 @@ button:disabled {
   border-radius: 8px;
 }
 
+.wide-panel {
+  max-width: 1040px;
+}
+
+.sentiment-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: #fbfbf8;
+  border: 1px solid #e0e0da;
+  border-radius: 8px;
+}
+
+.sentiment-card h3 {
+  margin: 0;
+}
+
+.sentiment-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.neutral-line {
+  stroke: #9ca3af;
+  stroke-dasharray: 6 6;
+  stroke-width: 2;
+}
+
+.grid-line {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+}
+
+.trend-line {
+  stroke-linecap: round;
+  stroke-width: 5;
+}
+
+.trend-positive {
+  stroke: #16a34a;
+}
+
+.trend-negative {
+  stroke: #dc2626;
+}
+
+.trend-dot {
+  stroke: white;
+  stroke-width: 2;
+}
+
+.trend-dot-positive {
+  fill: #16a34a;
+}
+
+.trend-dot-negative {
+  fill: #dc2626;
+}
+
+.chart-label {
+  fill: #66665f;
+  font-size: 12px;
+}
+
+.axis-label {
+  fill: #66665f;
+  font-size: 12px;
+}
+
 .panel h2,
 .topbar h1 {
   margin: 0;
@@ -137,6 +207,59 @@ dt {
   text-transform: uppercase;
 }
 
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e4e4de;
+  vertical-align: top;
+}
+
+th {
+  color: #66665f;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.sentiment {
+  display: inline-block;
+  min-width: 76px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sentiment-positive {
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.sentiment-neutral {
+  color: #3f3f46;
+  background: #f4f4f5;
+}
+
+.sentiment-negative {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+}
+
+.inline-form input {
+  flex: 1;
+}
+
 .muted {
   color: #66665f;
 }
@@ -152,6 +275,10 @@ dt {
 
   .topbar {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .inline-form {
     flex-direction: column;
   }
 }

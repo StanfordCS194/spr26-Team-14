@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./app.css";
 import { CompetitivePage } from "./pages/competitive";
+import { MonitoringPage } from "./pages/monitoring";
 import type { BusinessProfile } from "./types";
 
 const API_BASE =
@@ -179,7 +180,9 @@ export function ProfileDashboard({
           </button>
         </header>
 
-        {activePage === "benchmarking" ? (
+        {activePage === "monitoring" ? (
+          <MonitoringPage profile={profile} />
+        ) : activePage === "benchmarking" ? (
           <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
         ) : (
           <article className="panel">

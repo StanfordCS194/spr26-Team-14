@@ -3,6 +3,8 @@ import { expect, test } from "bun:test";
 import { businessProfiles } from "../db/business-profiles";
 import { businessRoutes } from "./business";
 
+process.env.DISABLE_ONBOARDING_PROMPT_GENERATION = "1";
+
 const app = new Hono().route("/", businessRoutes);
 
 test("creates and lists business profiles", async () => {
@@ -42,4 +44,24 @@ test("saves competitors for a business profile", async () => {
 
   expect(response.status).toBe(200);
   expect((await response.json()).competitorNames).toEqual(["A", "B", "C", "D", "E"]);
+});
+
+test("adds monitoring prompts for a business profile", async () => {
+  const profile = businessProfiles.create({
+    name: `Monitor ${crypto.randomUUID()}`,
+    website: "https://monitor.test",
+    description: "Monitoring test profile.",
+  });
+
+  const response = await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({ prompt: "What is the best monitoring platform for AI search?" }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(response.status).toBe(201);
+
+  const listRes = await app.request(`/business-profiles/${profile.id}/monitoring`);
+  const listBody = await listRes.json();
+  expect(listBody.prompts).toHaveLength(1);
+  expect(listBody.prompts[0].mentionSentiment).toBeTruthy();
 });

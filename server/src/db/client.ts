@@ -27,6 +27,23 @@ export function runMigrations() {
       PRIMARY KEY (business_profile_id, position),
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS business_setup_state (
+      business_profile_id TEXT PRIMARY KEY,
+      monitoring_status TEXT NOT NULL,
+      error TEXT,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS monitoring_prompts (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      mention_sentiment TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
   `);
 }
 
