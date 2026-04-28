@@ -1,3 +1,11 @@
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  website: string;
+  description: string;
+  createdAt: string;
+}
+
 export interface OverviewRow {
   brandId: string;
   shareOfVoice: number;

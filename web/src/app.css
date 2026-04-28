@@ -1,0 +1,165 @@
+:root {
+  color: #181818;
+  background: #f7f7f4;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+.page,
+.app-shell {
+  min-height: 100vh;
+}
+
+.center-page {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.onboarding {
+  display: grid;
+  gap: 16px;
+  width: min(520px, 100%);
+  padding: 24px;
+  background: white;
+  border: 1px solid #d8d8d2;
+  border-radius: 8px;
+}
+
+.onboarding h1,
+.profile-header h1 {
+  margin: 0;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 650;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #bdbdb5;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: white;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: white;
+  background: #111;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  color: white;
+  background: #171717;
+}
+
+.workspace {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #d8d8d2;
+}
+
+.topbar select {
+  max-width: 260px;
+}
+
+.panel {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+  padding: 24px;
+  background: white;
+  border: 1px solid #d8d8d2;
+  border-radius: 8px;
+}
+
+.panel h2,
+.topbar h1 {
+  margin: 0;
+}
+
+dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+dd {
+  margin: 4px 0 0;
+}
+
+dt {
+  color: #66665f;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: #66665f;
+}
+
+.error {
+  color: #b00020;
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar select {
+    max-width: none;
+  }
+}
