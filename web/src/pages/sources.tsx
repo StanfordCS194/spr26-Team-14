@@ -1,3 +1,5 @@
+import { SummaryCard } from "../components/dashboard/SummaryCard";
+
 export function SourcesPage() {
   return (
     <section className="page-frame">
@@ -5,9 +7,33 @@ export function SourcesPage() {
         <h1>Sources</h1>
         <p>See which pages, reviews, communities, and publications influence AI answers about your market.</p>
       </header>
-      <article className="placeholder-panel">
-        <h2>Source tracking will live here</h2>
-        <p>This page is ready for cited sources, competitor source wins, and earned-media opportunities.</p>
+      <section className="card-grid">
+        <SummaryCard eyebrow="Citations" title="18 found" description="Sources appearing in AI answers this week." />
+        <SummaryCard eyebrow="Competitors" title="5 wins" description="Third-party pages lifting competitor visibility." />
+        <SummaryCard eyebrow="Owned" title="4 pages" description="Brand pages that appear in monitored answers." />
+      </section>
+      <article className="panel">
+        <h3>Influential Sources</h3>
+        <div className="source-row">
+          <span>Source</span>
+          <span>Type</span>
+          <span>Signal</span>
+        </div>
+        <div className="source-row">
+          <span>Industry comparison article</span>
+          <span>Publication</span>
+          <span>Competitor</span>
+        </div>
+        <div className="source-row">
+          <span>Customer discussion thread</span>
+          <span>Community</span>
+          <span>Gap</span>
+        </div>
+        <div className="source-row">
+          <span>Product documentation page</span>
+          <span>Owned</span>
+          <span>Positive</span>
+        </div>
       </article>
     </section>
   );

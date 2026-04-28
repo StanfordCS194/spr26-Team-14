@@ -16,8 +16,8 @@ describe("dashboard shell", () => {
   });
 
   test("renders placeholder pages", () => {
-    expect(renderToStaticMarkup(<MonitoringPage />).includes("Prompt monitoring")).toBeTrue();
-    expect(renderToStaticMarkup(<RecommendationsPage />).includes("Fix-it recommendations")).toBeTrue();
-    expect(renderToStaticMarkup(<SourcesPage />).includes("Source tracking")).toBeTrue();
+    expect(renderToStaticMarkup(<MonitoringPage />).includes("Prompt Queue")).toBeTrue();
+    expect(renderToStaticMarkup(<RecommendationsPage />).includes("Recommended Actions")).toBeTrue();
+    expect(renderToStaticMarkup(<SourcesPage />).includes("Influential Sources")).toBeTrue();
   });
 });
