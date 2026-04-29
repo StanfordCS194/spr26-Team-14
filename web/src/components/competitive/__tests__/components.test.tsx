@@ -4,11 +4,14 @@ import { CompetitiveSetPicker } from "../CompetitiveSetPicker";
 import { WhitespacePanel } from "../WhitespacePanel";
 
 describe("competitive components", () => {
-  test("renders demo defaults and 5 competitor slots", () => {
+  test("renders streaming demo defaults and 5 competitor slots", () => {
     const html = renderToStaticMarkup(<CompetitiveSetPicker onCreate={async () => {}} />);
     const nums = (html.match(/picker__num/g) ?? []).length;
     expect(nums).toBe(5);
     expect(html.toLowerCase().includes("your brand")).toBeTrue();
+    expect(html.includes("Netflix")).toBeTrue();
+    expect(html.includes("Disney+")).toBeTrue();
+    expect(html.includes("Paramount+")).toBeTrue();
   });
 
   test("renders whitespace counts", () => {
