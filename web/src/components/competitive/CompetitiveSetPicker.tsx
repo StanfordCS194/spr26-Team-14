@@ -5,7 +5,6 @@ interface Props {
   busy?: boolean;
 }
 
-/** Demo cohort: Sephora vs five beauty retail competitors */
 const DEFAULT_ACCOUNT = "Sephora";
 const DEFAULT_COMPETITORS = ["Ulta", "Bluemercury", "SpaceNK", "SallyBeauty", "Olive Young"];
 
@@ -18,43 +17,58 @@ export function CompetitiveSetPicker({ onCreate, busy }: Props) {
   }, [accountBrandName, competitorNames]);
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16, marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0 }}>Competitive Set — Demo (5 competitors)</h3>
-      <label style={{ display: "block", marginBottom: 8 }}>
-        Your brand
+    <div className="panel panel--paper" aria-busy={busy}>
+      <p className="panel__title">Configure your benchmark</p>
+      <p className="panel__hint" style={{ marginBottom: 18 }}>
+        Pick your brand and five competitors. We&rsquo;ll fan twenty perception prompts across every brand and
+        compare the answers.
+      </p>
+
+      <label className="field">
+        <span className="field__label">Your brand</span>
         <input
+          className="field__input"
           value={accountBrandName}
           onChange={(e) => setAccountBrandName(e.target.value)}
-          style={{ width: "100%", marginTop: 4 }}
+          placeholder="e.g. Sephora"
+          spellCheck={false}
         />
       </label>
-      {competitorNames.map((name, idx) => (
-        <label key={idx} style={{ display: "block", marginBottom: 8 }}>
-          Competitor {idx + 1}
-          <input
-            value={name}
-            onChange={(e) => {
-              const next = [...competitorNames];
-              next[idx] = e.target.value;
-              setCompetitorNames(next);
-            }}
-            style={{ width: "100%", marginTop: 4 }}
-          />
-        </label>
-      ))}
-      <button
-        type="button"
-        onClick={() => onCreate({ accountBrandName: accountBrandName.trim(), competitorNames })}
-        disabled={!canSubmit || busy}
-      >
-        {busy ? "Running 20-question benchmark..." : "Run benchmark"}
-      </button>
-      {busy && (
-        <p style={{ marginBottom: 0, color: "#555" }}>
-          Generating brand-perception summaries and comparisons. This can take a bit while the server fans out the LLM
-          calls.
-        </p>
-      )}
-    </section>
+
+      <div className="subhead" style={{ marginTop: 18 }}>Competitive set · 5 brands</div>
+      <div className="fieldset-grid">
+        {competitorNames.map((name, idx) => (
+          <label className="field" key={idx} style={{ marginBottom: 0 }}>
+            <span className="field__label">Competitor {idx + 1}</span>
+            <input
+              className="field__input"
+              value={name}
+              onChange={(e) => {
+                const next = [...competitorNames];
+                next[idx] = e.target.value;
+                setCompetitorNames(next);
+              }}
+              spellCheck={false}
+            />
+          </label>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 22 }}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => onCreate({ accountBrandName: accountBrandName.trim(), competitorNames })}
+          disabled={!canSubmit || busy}
+        >
+          {busy ? "Running 20-prompt benchmark…" : "Run benchmark"}
+        </button>
+        {busy && (
+          <span style={{ fontFamily: "var(--pp-font-mono)", fontSize: 12, color: "var(--pp-ink-3)" }}>
+            Streaming brand summaries and judge comparisons in parallel.
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

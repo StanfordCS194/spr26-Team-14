@@ -19,6 +19,11 @@ interface BrandProgressBox {
   completedPrompts: number;
 }
 
+interface LlmStatus {
+  provider: string;
+  mode: "live" | "mock";
+}
+
 function appendLine(lines: string[], line: string) {
   return [...lines, line].slice(-MAX_PROGRESS_LINES);
 }
@@ -48,14 +53,21 @@ export function CompetitivePage() {
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
   const [gaps, setGaps] = useState<GapEvent[]>([]);
   const [error, setError] = useState<string>("");
-  const [progressStatus, setProgressStatus] = useState<string>("No run in progress.");
+  const [progressStatus, setProgressStatus] = useState<string>("Idle.");
   const [judgeLines, setJudgeLines] = useState<string[]>([]);
   const [progressByBrand, setProgressByBrand] = useState<Record<string, BrandProgressBox>>({});
-
+  const [llmStatus, setLlmStatus] = useState<LlmStatus | null>(null);
   const [lastWindow, setLastWindow] = useState<{ windowStart: string; windowEnd: string } | null>(null);
   const progressSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    fetch(`${API_BASE}/llm/status`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => body && setLlmStatus(body))
+      .catch(() => {
+        /* leave null; pill hides */
+      });
+
     return () => {
       progressSourceRef.current?.close();
       progressSourceRef.current = null;
@@ -86,17 +98,15 @@ export function CompetitivePage() {
         return;
       }
       case "judge_delta": {
-        setProgressStatus(`Judging ${event.promptKind} prompt...`);
+        setProgressStatus(`Judging ${event.promptKind} prompt…`);
         setJudgeLines((current) => appendLine(current, event.text));
         return;
       }
       case "answer_started": {
-        setProgressStatus(`Generating ${event.promptKind} summaries...`);
+        setProgressStatus(`Generating ${event.promptKind} summaries…`);
         setProgressByBrand((current) => {
           const existing = current[event.brandId];
-          if (!existing) {
-            return current;
-          }
+          if (!existing) return current;
           return {
             ...current,
             [event.brandId]: {
@@ -112,14 +122,12 @@ export function CompetitivePage() {
       case "answer_delta": {
         setProgressByBrand((current) => {
           const existing = current[event.brandId];
-          if (!existing) {
-            return current;
-          }
+          if (!existing) return current;
           return {
             ...current,
             [event.brandId]: {
               ...existing,
-              status: `Streaming ${event.promptKind} summary...`,
+              status: `Streaming ${event.promptKind} summary…`,
               activePrompt: event.prompt,
               lines: appendLine(existing.lines, event.text),
             },
@@ -130,9 +138,7 @@ export function CompetitivePage() {
       case "answer_completed": {
         setProgressByBrand((current) => {
           const existing = current[event.brandId];
-          if (!existing) {
-            return current;
-          }
+          if (!existing) return current;
           const completedPrompts = existing.completedPrompts + 1;
           return {
             ...current,
@@ -181,7 +187,7 @@ export function CompetitivePage() {
       const sessionId = crypto.randomUUID();
       const stream = new EventSource(`${API_BASE}/competitive/stream/${sessionId}`);
       progressSourceRef.current = stream;
-      setProgressStatus("Connecting progress stream...");
+      setProgressStatus("Connecting progress stream…");
       stream.onmessage = (message) => {
         handleProgressEvent(JSON.parse(message.data) as CompetitiveProgressEvent);
       };
@@ -244,81 +250,182 @@ export function CompetitivePage() {
     }
   }
 
+  const totalCompetitors = competitorBrandIds.length || 5;
+  const labelsForBrands = brandLabels;
+
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "Inter, Arial, sans-serif" }}>
-      <h1>Competitive Benchmarking — Demo</h1>
-      <p style={{ marginTop: 0 }}>
-        Each run uses <strong>10 brand-specific prompts</strong> (with each retailer’s name) plus{" "}
-        <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per retailer;
-        outputs are compared and rolled into share of voice and sentiment. Default slate:{" "}
-        <strong>Sephora</strong> vs <strong>Ulta</strong>, <strong>Bluemercury</strong>, <strong>SpaceNK</strong>,{" "}
-        <strong>SallyBeauty</strong>, and <strong>Olive Young</strong>.
-      </p>
+    <main className="app-shell">
+      <header className="app-header fade-in">
+        <div className="app-brand">
+          <span className="app-brand__mark">P</span>
+          <span className="app-brand__name">Perception</span>
+          <span className="app-brand__sub">Competitive Intelligence · v0.1</span>
+        </div>
+        {llmStatus && (
+          <span className={`pill pill--${llmStatus.mode}`}>
+            <span className="pill__dot" />
+            {llmStatus.mode === "live" ? `Live · ${llmStatus.provider}` : "Demo · mock LLM"}
+          </span>
+        )}
+      </header>
 
-      <CompetitiveSetPicker onCreate={createSet} busy={busy} />
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      <section className="hero fade-in fade-in--d1">
+        <div>
+          <p className="hero__eyebrow">Competitive benchmarking</p>
+          <h1 className="hero__title">
+            How AI <em>actually</em> talks about your brand.
+          </h1>
+          <p className="hero__lede">
+            Perception fans twenty perception prompts across your brand and five competitors, asks ChatGPT,
+            Claude, and Gemini-class models to answer each, and rolls the results into share of voice,
+            sentiment, and feature gaps you can screenshot and bring to your CMO.
+          </p>
+        </div>
+        <div className="hero__meta">
+          <div className="hero__meta-row">
+            <span><strong>{totalCompetitors}</strong> competitors</span>
+            <span><strong>20</strong> prompts / brand</span>
+            <span><strong>7d</strong> trailing window</span>
+          </div>
+          <div className="hero__meta-row">
+            <span>Account · <strong>{accountBrandName}</strong></span>
+          </div>
+        </div>
+      </section>
 
-      <LiveRunTheater
-        busy={busy}
-        progressStatus={progressStatus}
-        judgeLines={judgeLines}
-        progressByBrand={progressByBrand}
-      />
-
-
-      {overview && (
-        <>
-          <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
-            <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
-          </section>
-          <FeatureGapTable
-            rows={overview.rows}
-            gaps={gaps}
-            brandLabels={brandLabels}
-            accountBrandName={accountBrandName}
-          />
-          <section style={{ marginTop: 16 }}>
-            <WhitespacePanel gaps={gaps} />
-          </section>
-        </>
+      {llmStatus?.mode === "mock" && (
+        <p className="banner fade-in fade-in--d2">
+          Running in demo mode — answers are deterministic mock text. Add{" "}
+          <code style={{ fontFamily: "var(--pp-font-mono)" }}>OPENAI_API_KEY</code> to <code>server/.env</code>{" "}
+          and restart for live LLM output.
+        </p>
       )}
 
-      <section style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Trend Snapshot (7 days)</h3>
-        {!trends ? (
-          <p>No trend data yet.</p>
-        ) : (
-          <pre style={{ overflowX: "auto", margin: 0 }}>
-            {JSON.stringify(
-              Object.fromEntries(
-                Object.entries(trends.seriesByBrand).map(([id, pts]) => [brandLabels[id] ?? id, pts]),
-              ),
-              null,
-              2,
-            )}
-          </pre>
-        )}
-      </section>
+      <div className="grid-side fade-in fade-in--d2">
+        <aside>
+          <CompetitiveSetPicker onCreate={createSet} busy={busy} />
+        </aside>
 
-      <section style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Run Configuration</h3>
-        <p>
-          Account: {accountBrandName} ({accountBrandId || "run to assign IDs"})
-        </p>
-        <p>
-          Competitors:{" "}
-          {competitorBrandIds.length
-            ? competitorBrandIds.map((id) => brandLabels[id] ?? id).join(", ")
-            : "Ulta, Bluemercury, SpaceNK, SallyBeauty, Olive Young (defaults)"}
-        </p>
-        <p>
-          Window:{" "}
-          {lastWindow
-            ? `${lastWindow.windowStart} – ${lastWindow.windowEnd}`
-            : "Run the benchmark to set the query window"}
-        </p>
-      </section>
+        <div>
+          <LiveRunTheater
+            busy={busy}
+            progressStatus={progressStatus}
+            judgeLines={judgeLines}
+            progressByBrand={progressByBrand}
+          />
+
+          {error && (
+            <div
+              className="banner"
+              style={{ background: "rgba(179, 37, 31, 0.08)", borderColor: "rgba(179, 37, 31, 0.3)", color: "var(--pp-accent)" }}
+            >
+              {error}
+            </div>
+          )}
+
+          {!overview && !busy && (
+            <div className="empty">
+              <p className="empty__title">No benchmark yet</p>
+              <p>Hit “Run benchmark” to fan twenty prompts across all six brands.</p>
+            </div>
+          )}
+
+          {overview && (
+            <>
+              <section className="section fade-in fade-in--d3">
+                <header className="section__head">
+                  <h2 className="section__title">At a glance</h2>
+                  <span className="section__kicker">7-day rolling window</span>
+                </header>
+                <div className="grid-2">
+                  <ShareOfVoiceChart rows={overview.rows} brandLabels={labelsForBrands} />
+                  <SentimentComparison rows={overview.rows} brandLabels={labelsForBrands} />
+                </div>
+              </section>
+
+              <section className="section fade-in fade-in--d3">
+                <header className="section__head">
+                  <h2 className="section__title">Feature signal &amp; gaps</h2>
+                  <span className="section__kicker">Judge LLM · top 3 themes / brand</span>
+                </header>
+                <FeatureGapTable
+                  rows={overview.rows}
+                  gaps={gaps}
+                  brandLabels={labelsForBrands}
+                  accountBrandName={accountBrandName}
+                />
+              </section>
+
+              <section className="section">
+                <WhitespacePanel gaps={gaps} />
+              </section>
+            </>
+          )}
+
+          <section className="section">
+            <header className="section__head">
+              <h2 className="section__title">Trend snapshot</h2>
+              <span className="section__kicker">Last 7 days</span>
+            </header>
+            {!trends || Object.keys(trends.seriesByBrand).length === 0 ? (
+              <p className="panel__hint">Run a benchmark to populate trend lines.</p>
+            ) : (
+              <pre className="trend-list">
+                {Object.entries(trends.seriesByBrand)
+                  .map(([id, pts]) => {
+                    const name = labelsForBrands[id] ?? id;
+                    const summary = pts
+                      .map(
+                        (p) =>
+                          `  ${p.t.slice(0, 10)}  sov=${(p.sov * 100).toFixed(1).padStart(5, " ")}%  sent=${p.sentiment.toFixed(2)}`,
+                      )
+                      .join("\n");
+                    return `${name}\n${summary}`;
+                  })
+                  .join("\n\n")}
+              </pre>
+            )}
+          </section>
+
+          <section className="section">
+            <header className="section__head">
+              <h2 className="section__title">Run configuration</h2>
+              <span className="section__kicker">Last execution</span>
+            </header>
+            <div
+              className="panel--paper panel"
+              style={{
+                borderTop: "none",
+                display: "grid",
+                gap: 6,
+                fontFamily: "var(--pp-font-mono)",
+                fontSize: 12,
+                color: "var(--pp-ink-2)",
+              }}
+            >
+              <div>
+                <span style={{ color: "var(--pp-ink-3)" }}>account</span> · {accountBrandName}{" "}
+                <span style={{ color: "var(--pp-ink-4)" }}>({accountBrandId || "—"})</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--pp-ink-3)" }}>competitors</span> ·{" "}
+                {competitorBrandIds.length
+                  ? competitorBrandIds.map((id) => labelsForBrands[id] ?? id).join(", ")
+                  : "Ulta, Bluemercury, SpaceNK, SallyBeauty, Olive Young (defaults)"}
+              </div>
+              <div>
+                <span style={{ color: "var(--pp-ink-3)" }}>window</span> ·{" "}
+                {lastWindow ? `${lastWindow.windowStart} → ${lastWindow.windowEnd}` : "—"}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <footer className="app-footer">
+        <span>Perception · brand intelligence for the AI layer</span>
+        <span>{new Date().getFullYear()}</span>
+      </footer>
     </main>
   );
 }

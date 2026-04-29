@@ -8,23 +8,36 @@ export function SentimentComparison({
   brandLabels?: Record<string, string>;
 }) {
   const label = (id: string) => brandLabels?.[id] ?? id;
+  const sorted = [...rows].sort((a, b) => b.sentiment - a.sentiment);
+
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Sentiment Comparison</h3>
-      <table width="100%">
-        <thead>
-          <tr>
-            <th align="left">Brand</th>
-            <th align="right">Sentiment</th>
-          </tr>
-        </thead>
+    <section className="panel">
+      <h3 className="panel__title">Sentiment</h3>
+      <p className="panel__hint" style={{ marginBottom: 16 }}>
+        Where each brand sits on a -1 to +1 valence axis (averaged across all prompts).
+      </p>
+      <table className="data-table">
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.brandId}>
-              <td>{label(row.brandId)}</td>
-              <td align="right">{row.sentiment.toFixed(2)}</td>
-            </tr>
-          ))}
+          {sorted.map((row) => {
+            const pct = ((row.sentiment + 1) / 2) * 100;
+            const tone =
+              row.sentiment >= 0.25 ? "var(--pp-success)" : row.sentiment <= -0.25 ? "var(--pp-accent)" : "var(--pp-ink)";
+            return (
+              <tr key={row.brandId}>
+                <td>
+                  <div className="bar-row">
+                    <span className="bar-row__label">{label(row.brandId)}</span>
+                    <span className="gauge" style={{ flexGrow: 1 }}>
+                      <span className="gauge__pin" style={{ left: `${pct}%`, background: tone }} />
+                    </span>
+                    <span className="bar-row__num" style={{ color: tone }}>
+                      {row.sentiment.toFixed(2)}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </section>

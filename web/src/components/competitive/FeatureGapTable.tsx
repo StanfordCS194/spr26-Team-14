@@ -12,33 +12,49 @@ export function FeatureGapTable({ rows, gaps, brandLabels, accountBrandName = "Y
   const label = (id: string) => brandLabels?.[id] ?? id;
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Feature Strengths & Weaknesses</h3>
-      <table width="100%" style={{ marginBottom: 16 }}>
+    <section className="panel">
+      <h3 className="panel__title">Feature strengths</h3>
+      <p className="panel__hint" style={{ marginBottom: 16 }}>
+        The themes the judge LLM repeatedly attached to each brand across the 20 perception prompts.
+      </p>
+      <table className="data-table">
         <thead>
           <tr>
-            <th align="left">Brand</th>
-            <th align="left">Top Features</th>
+            <th style={{ width: "30%" }}>Brand</th>
+            <th>Top features</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.brandId}>
               <td>{label(row.brandId)}</td>
-              <td>{row.topFeatures.join(", ") || "No feature signal yet"}</td>
+              <td>
+                {row.topFeatures.length === 0 ? (
+                  <span style={{ color: "var(--pp-ink-4)", fontStyle: "italic" }}>No feature signal yet</span>
+                ) : (
+                  <span className="tag-row">
+                    {row.topFeatures.map((feature) => (
+                      <span className="tag" key={feature}>{feature}</span>
+                    ))}
+                  </span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <h4>Feature Praise Gaps</h4>
+
+      <div className="subhead">Feature praise gaps</div>
       {praiseGaps.length === 0 ? (
-        <p>No feature praise gaps detected.</p>
+        <p style={{ color: "var(--pp-ink-3)", margin: 0, fontSize: 14 }}>
+          No feature praise gaps detected in this window.
+        </p>
       ) : (
-        <ul>
+        <ul className="bullets">
           {praiseGaps.map((gap) => (
             <li key={gap.id}>
-              {gap.competitorBrandId ? label(gap.competitorBrandId) : "Competitor"} praised on &quot;
-              {gap.featureKey}&quot; while {accountBrandName}&apos;s equivalent is unmentioned in the judge output.
+              <strong>{gap.competitorBrandId ? label(gap.competitorBrandId) : "Competitor"}</strong> is praised on{" "}
+              <em>{gap.featureKey}</em>; {accountBrandName}&rsquo;s equivalent is unmentioned.
             </li>
           ))}
         </ul>
