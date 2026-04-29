@@ -1,7 +1,15 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { loadStreamingSeed } from "../seed/streaming";
 import { businessRoutes } from "./routes/business";
 import { competitiveRoutes } from "./routes/competitive";
+
+if ((process.env.PERCEPTION_DEMO_SEED ?? "1") !== "0") {
+  const summary = loadStreamingSeed();
+  console.log(
+    `[seed] Loaded streaming demo cohort: ${summary.promptRunCount} prompt runs, ${summary.comparisonCount} comparisons, ${summary.gapEventCount} gap events.`,
+  );
+}
 
 const app = new Hono();
 
