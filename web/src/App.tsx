@@ -76,7 +76,9 @@ export function App() {
       .then((res) => res.json())
       .then((body: { profiles: BusinessProfile[] }) => {
         setProfiles(body.profiles);
-        setActiveProfileId(body.profiles[0]?.id ?? "");
+        // Prefer the seeded demo brand if it exists, otherwise the first profile.
+        const seeded = body.profiles.find((p) => p.name === "Netflix");
+        setActiveProfileId((seeded ?? body.profiles[0])?.id ?? "");
       })
       .catch(() => setError("Could not load business profiles."))
       .finally(() => setLoading(false));
