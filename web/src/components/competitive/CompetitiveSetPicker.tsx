@@ -30,7 +30,7 @@ export function CompetitiveSetPicker({
   }, [accountBrandName, competitorNames]);
 
   return (
-    <section className="panel wide-panel picker">
+    <section className="card wide-panel picker">
       <div className="picker__head">
         <h3>Competitive set</h3>
         <span className="picker__count">5 competitors</span>

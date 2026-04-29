@@ -21,7 +21,7 @@ export function ShareOfVoiceChart({
   const max = Math.max(0.001, ...sorted.map((row) => row.shareOfVoice));
 
   return (
-    <section className="panel">
+    <section className="card">
       <h3>Share of voice</h3>
       <p className="muted">Comparative narrative weight across all 20 perception prompts.</p>
       <div className="metric-list">

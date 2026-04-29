@@ -11,7 +11,7 @@ export function SentimentComparison({
   const sorted = [...rows].sort((a, b) => b.sentiment - a.sentiment);
 
   return (
-    <section className="panel">
+    <section className="card">
       <h3>Sentiment</h3>
       <p className="muted">Where each brand sits on a -1 to +1 valence axis.</p>
       <div className="metric-list">

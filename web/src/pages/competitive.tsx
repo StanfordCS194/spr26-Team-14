@@ -310,15 +310,6 @@ export function CompetitivePage({
 
   return (
     <>
-      <section className="panel wide-panel">
-        <h2>Competitive Benchmarking</h2>
-        <p className="muted">
-          Each run uses <strong>10 brand-specific prompts</strong> (with each brand’s name) plus{" "}
-          <strong>10 category-wide prompts</strong>, all answered per brand; outputs are compared and rolled
-          into share of voice, sentiment, feature gaps, and whitespace.
-        </p>
-      </section>
-
       <CompetitiveSetPicker
         accountBrandName={businessName}
         busy={busy}
@@ -335,26 +326,35 @@ export function CompetitivePage({
         progressByBrand={progressByBrand}
       />
 
-
       {overview && (
         <>
-          <div className="charts-grid">
-            <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
-            <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
+          <div className="block">
+            <h2 className="block__title">At a glance</h2>
+            <div className="charts-grid">
+              <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
+              <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
+            </div>
           </div>
-          <FeatureGapTable
-            rows={overview.rows}
-            gaps={gaps}
-            brandLabels={brandLabels}
-            accountBrandName={accountBrandName}
-          />
-          <WhitespacePanel gaps={gaps} />
+
+          <div className="block">
+            <h2 className="block__title">Feature signal &amp; gaps</h2>
+            <FeatureGapTable
+              rows={overview.rows}
+              gaps={gaps}
+              brandLabels={brandLabels}
+              accountBrandName={accountBrandName}
+            />
+          </div>
+
+          <div className="block">
+            <h2 className="block__title">Whitespace</h2>
+            <WhitespacePanel gaps={gaps} />
+          </div>
         </>
       )}
 
-      <section className="panel wide-panel">
-        <h3>Trend snapshot</h3>
-        <p className="muted">Daily averages across every prompt run — share of voice and sentiment for the last 7 days.</p>
+      <div className="block">
+        <h2 className="block__title">Trend snapshot</h2>
         {!trends || Object.keys(trends.seriesByBrand).length === 0 ? (
           <p className="muted">Run a benchmark to populate trend lines.</p>
         ) : (
@@ -408,17 +408,14 @@ export function CompetitivePage({
             })}
           </div>
         )}
-      </section>
+      </div>
 
-      <section className="panel wide-panel">
-        <h3>Run configuration</h3>
-        <p className="muted">Last execution context.</p>
-        <dl>
+      <div className="block">
+        <h2 className="block__title">Run configuration</h2>
+        <dl className="run-meta">
           <div>
             <dt>Account</dt>
-            <dd>
-              {accountBrandName} <span className="muted">({accountBrandId || "—"})</span>
-            </dd>
+            <dd>{accountBrandName}</dd>
           </div>
           <div>
             <dt>Competitors</dt>
@@ -430,10 +427,10 @@ export function CompetitivePage({
           </div>
           <div>
             <dt>Window</dt>
-            <dd>{lastWindow ? `${lastWindow.windowStart} → ${lastWindow.windowEnd}` : "—"}</dd>
+            <dd>{lastWindow ? `${lastWindow.windowStart.slice(0, 10)} → ${lastWindow.windowEnd.slice(0, 10)}` : "—"}</dd>
           </div>
         </dl>
-      </section>
+      </div>
     </>
   );
 }

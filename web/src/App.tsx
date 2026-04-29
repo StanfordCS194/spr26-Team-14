@@ -191,8 +191,10 @@ export function ProfileDashboard({
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="topbar__eyebrow">{activeNav.label}</p>
-            <h1>{profile.name}</h1>
+            <p className="topbar__eyebrow">
+              <span className="topbar__brand">{profile.name}</span>
+            </p>
+            <h1>{activeNav.label}</h1>
             <p className="topbar__sub">{activeNav.description}</p>
           </div>
         </header>
@@ -202,11 +204,13 @@ export function ProfileDashboard({
         ) : activePage === "benchmarking" ? (
           <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
         ) : (
-          <article className="panel wide-panel placeholder-panel">
-            <p className="muted">{activeNav.label}</p>
-            <h2>Coming soon for {profile.name}</h2>
-            <p>{activeNav.description}</p>
-            <dl>
+          <div className="block">
+            <header className="block__head">
+              <h2>Coming soon</h2>
+              <span className="block__kicker">{activeNav.label}</span>
+            </header>
+            <p className="muted" style={{ maxWidth: "60ch" }}>{activeNav.description}</p>
+            <dl className="run-meta">
               <div>
                 <dt>Website</dt>
                 <dd>{profile.website}</dd>
@@ -216,7 +220,7 @@ export function ProfileDashboard({
                 <dd>{profile.description}</dd>
               </div>
             </dl>
-          </article>
+          </div>
         )}
 
         {error && <p className="error">{error}</p>}

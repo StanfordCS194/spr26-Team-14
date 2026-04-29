@@ -34,7 +34,7 @@ export function LiveRunTheater({ busy, progressStatus, judgeLines, progressByBra
   }
 
   return (
-    <section className="theater">
+    <section className="card theater">
       <header className="theater__head">
         <div>
           <span className="theater__kicker">Live Run</span>

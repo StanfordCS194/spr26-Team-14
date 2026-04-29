@@ -6,11 +6,7 @@ export function WhitespacePanel({ gaps }: { gaps: GapEvent[] }) {
   const praise = gaps.filter((gap) => gap.gapType === "feature_praise_gap");
 
   return (
-    <section className="panel wide-panel">
-      <h3>Whitespace opportunities</h3>
-      <p className="muted">
-        Categories and prompts where AI assistants don&rsquo;t firmly recommend any brand yet.
-      </p>
+    <div className="whitespace-block">
       <div className="stat-row">
         <Stat label="Whitespace" value={whitespace.length} />
         <Stat label="Exclusion gaps" value={exclusion.length} />
@@ -26,7 +22,7 @@ export function WhitespacePanel({ gaps }: { gaps: GapEvent[] }) {
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
 

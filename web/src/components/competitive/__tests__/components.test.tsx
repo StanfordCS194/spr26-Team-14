@@ -27,6 +27,6 @@ describe("competitive components", () => {
         ]}
       />,
     );
-    expect(html.toLowerCase().includes("whitespace opportunities")).toBeTrue();
+    expect(html.toLowerCase().includes("whitespace")).toBeTrue();
   });
 });
