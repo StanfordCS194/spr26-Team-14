@@ -1,3 +1,4 @@
+import type { AccuracyFlag, FactSheet } from "../features/accuracy/types";
 import type {
   AIAnswer,
   Brand,
@@ -63,6 +64,8 @@ export const store = {
     payload: Record<string, unknown>;
     createdAt: string;
   }>,
+  factSheets: new Map<string, FactSheet>(),
+  accuracyFlags: [] as AccuracyFlag[],
 };
 
 export const seedPromptSetId = seededPromptSet.id;
@@ -78,4 +81,6 @@ export function resetStore() {
   store.gapEvents.length = 0;
   store.benchmarkSnapshots.length = 0;
   store.recommendationInputs.length = 0;
+  store.factSheets.clear();
+  store.accuracyFlags.length = 0;
 }

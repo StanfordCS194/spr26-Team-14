@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { accuracyRoutes } from "./routes/accuracy";
 import { businessRoutes } from "./routes/business";
 import { competitiveRoutes } from "./routes/competitive";
 
@@ -16,6 +17,7 @@ app.use(
 app.get("/health", (c) => c.json({ ok: true }));
 app.route("/", businessRoutes);
 app.route("/", competitiveRoutes);
+app.route("/", accuracyRoutes);
 
 export default {
   port: Number(process.env.PORT ?? 3000),
