@@ -186,16 +186,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   font-weight: 400;
 }
 .brand-mark {
-  display: grid;
+  display: block;
   width: 26px;
   height: 26px;
-  place-items: center;
-  background: var(--accent);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: white;
-  letter-spacing: -0.02em;
+  flex: 0 0 26px;
+  object-fit: contain;
 }
 
 .nav-list { display: grid; gap: 1px; }
@@ -661,6 +656,35 @@ th {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+/* ---------- Recommendations (match benchmarking density) ---------- */
+.rec-stack {
+  display: grid;
+  gap: 12px;
+}
+.rec-stack .card .subhead {
+  margin: 0 0 4px;
+}
+.rec-item__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.rec-item__rank {
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+.rec-item__body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
 }
 
 .subhead {
