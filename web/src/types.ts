@@ -1,3 +1,25 @@
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  website: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface MonitoringPrompt {
+  id: string;
+  businessProfileId: string;
+  prompt: string;
+  mentionSentiment: "positive" | "negative" | "neutral";
+  createdAt: string;
+}
+
+export interface MonitoringResponse {
+  status: "generating" | "ready" | "error";
+  error: string | null;
+  prompts: MonitoringPrompt[];
+}
+
 export interface OverviewRow {
   brandId: string;
   shareOfVoice: number;

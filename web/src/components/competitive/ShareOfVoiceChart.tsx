@@ -9,17 +9,24 @@ export function ShareOfVoiceChart({
 }) {
   const label = (id: string) => brandLabels?.[id] ?? id;
   return (
-    <section className="panel">
-      <h3>Share of Voice</h3>
-      {rows.map((row) => (
-        <div className="metric-row" key={row.brandId}>
-          <strong>{label(row.brandId)}</strong>
-          <div className="metric-track" aria-hidden="true">
-            <div className="metric-fill" style={{ width: `${Math.max(row.shareOfVoice * 100, 4)}%` }} />
-          </div>
-          <span>{(row.shareOfVoice * 100).toFixed(1)}%</span>
-        </div>
-      ))}
+    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+      <h3 style={{ marginTop: 0 }}>Share of Voice</h3>
+      <table width="100%">
+        <thead>
+          <tr>
+            <th align="left">Brand</th>
+            <th align="right">SOV</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.brandId}>
+              <td>{label(row.brandId)}</td>
+              <td align="right">{(row.shareOfVoice * 100).toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }

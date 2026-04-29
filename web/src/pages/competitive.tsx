@@ -37,11 +37,18 @@ function createInitialProgressBoxes(labels: Record<string, string>) {
   );
 }
 
-export function CompetitivePage() {
+export function CompetitivePage({
+  businessProfileId,
+  businessName,
+}: {
+  businessProfileId?: string;
+  businessName?: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [accountBrandId, setAccountBrandId] = useState<string>("");
-  const [accountBrandName, setAccountBrandName] = useState<string>("Sephora");
+  const [accountBrandName, setAccountBrandName] = useState<string>(businessName ?? "Sephora");
   const [competitorBrandIds, setCompetitorBrandIds] = useState<string[]>([]);
+  const [savedCompetitors, setSavedCompetitors] = useState<string[]>([]);
   const [brandLabels, setBrandLabels] = useState<Record<string, string>>({});
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
@@ -60,6 +67,32 @@ export function CompetitivePage() {
       progressSourceRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    setAccountBrandName(businessName ?? "Sephora");
+  }, [businessName]);
+
+  useEffect(() => {
+    if (!businessProfileId) {
+      return;
+    }
+    fetch(`${API_BASE}/business-profiles/${businessProfileId}/competitors`)
+      .then((res) => (res.ok ? res.json() : { competitorNames: [] }))
+      .then((body: { competitorNames: string[] }) => setSavedCompetitors(body.competitorNames))
+      .catch(() => setSavedCompetitors([]));
+  }, [businessProfileId]);
+
+  async function saveCompetitors(names: string[]) {
+    setSavedCompetitors(names);
+    if (!businessProfileId) {
+      return;
+    }
+    await fetch(`${API_BASE}/business-profiles/${businessProfileId}/competitors`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ competitorNames: names.map((name) => name.trim()) }),
+    });
+  }
 
   function closeProgressStream() {
     progressSourceRef.current?.close();
@@ -153,6 +186,7 @@ export function CompetitivePage() {
     try {
       const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const windowEndAfterRun = () => new Date().toISOString();
+      await saveCompetitors(input.competitorNames);
 
       const setRes = await fetch(`${API_BASE}/competitive-sets`, {
         method: "POST",
@@ -244,34 +278,48 @@ export function CompetitivePage() {
   }
 
   return (
-    <section className="page-frame">
-      <header className="page-header">
-        <h1>Competitive Benchmarking</h1>
-        <p>
-          Compare how AI answers describe your brand against five competitors, then surface share of voice, sentiment,
-          feature gaps, and whitespace opportunities.
-        </p>
-      </header>
+    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "Inter, Arial, sans-serif" }}>
+      <h1>Competitive Benchmarking</h1>
+      <p style={{ marginTop: 0 }}>
+        Each run uses <strong>10 brand-specific prompts</strong> (with each retailer’s name) plus{" "}
+        <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per retailer;
+        outputs are compared and rolled into share of voice and sentiment. Default slate:{" "}
+        <strong>Sephora</strong> vs <strong>Ulta</strong>, <strong>Bluemercury</strong>, <strong>SpaceNK</strong>,{" "}
+        <strong>SallyBeauty</strong>, and <strong>Olive Young</strong>.
+      </p>
 
-      <CompetitiveSetPicker onCreate={createSet} busy={busy} />
-      {error && <p className="error-text">{error}</p>}
+      <CompetitiveSetPicker
+        accountBrandName={businessName}
+        busy={busy}
+        competitorNames={savedCompetitors.length ? savedCompetitors : undefined}
+        onCreate={createSet}
+        onSave={saveCompetitors}
+      />
+      {error && <p style={{ color: "crimson" }}>{error}</p>}
 
       {(Object.keys(progressByBrand).length > 0 || judgeLines.length > 0 || busy) && (
-        <section className="panel run-panel">
-          <h3>Live Run Stream</h3>
-          <p>{progressStatus}</p>
+        <section style={{ marginBottom: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+          <h3 style={{ marginTop: 0 }}>Live Run Stream</h3>
+          <p style={{ marginTop: 0 }}>{progressStatus}</p>
           {judgeLines.length > 0 && (
-            <div className="stream-box">
+            <div style={{ marginBottom: 12, padding: 12, borderRadius: 6, background: "#fafafa" }}>
               <strong>Judge</strong>
-              <pre className="stream-output">{judgeLines.join("\n")}</pre>
+              <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: 12 }}>
+                {judgeLines.join("\n")}
+              </pre>
             </div>
           )}
-          <section className="run-grid">
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
             {Object.entries(progressByBrand).map(([brandId, box]) => (
-              <article key={brandId} className="stream-box">
-                <h4>{box.brandName}</h4>
-                <p>{box.status}</p>
-                <pre className="stream-output">{box.lines.length ? box.lines.join("\n") : "Waiting for streamed output..."}</pre>
+              <article
+                key={brandId}
+                style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, background: "#fff" }}
+              >
+                <h4 style={{ margin: "0 0 8px" }}>{box.brandName}</h4>
+                <p style={{ margin: "0 0 8px", color: "#555" }}>{box.status}</p>
+                <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: 12 }}>
+                  {box.lines.length ? box.lines.join("\n") : "Waiting for streamed output..."}
+                </pre>
               </article>
             ))}
           </section>
@@ -280,7 +328,7 @@ export function CompetitivePage() {
 
       {overview && (
         <>
-          <section className="panel-grid">
+          <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
             <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
           </section>
@@ -290,18 +338,18 @@ export function CompetitivePage() {
             brandLabels={brandLabels}
             accountBrandName={accountBrandName}
           />
-          <section>
+          <section style={{ marginTop: 16 }}>
             <WhitespacePanel gaps={gaps} />
           </section>
         </>
       )}
 
-      <section className="panel">
-        <h3>Trend Snapshot (7 days)</h3>
+      <section style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Trend Snapshot (7 days)</h3>
         {!trends ? (
           <p>No trend data yet.</p>
         ) : (
-          <pre className="raw-output">
+          <pre style={{ overflowX: "auto", margin: 0 }}>
             {JSON.stringify(
               Object.fromEntries(
                 Object.entries(trends.seriesByBrand).map(([id, pts]) => [brandLabels[id] ?? id, pts]),
@@ -313,8 +361,8 @@ export function CompetitivePage() {
         )}
       </section>
 
-      <section className="panel">
-        <h3>Run Configuration</h3>
+      <section style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Run Configuration</h3>
         <p>
           Account: {accountBrandName} ({accountBrandId || "run to assign IDs"})
         </p>
@@ -331,6 +379,6 @@ export function CompetitivePage() {
             : "Run the benchmark to set the query window"}
         </p>
       </section>
-    </section>
+    </main>
   );
 }
