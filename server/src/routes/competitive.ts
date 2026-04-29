@@ -153,3 +153,56 @@ competitiveRoutes.get("/competitive/gaps", (c) => {
   const gaps = store.gapEvents.filter((event) => event.brandId === accountBrandId);
   return c.json({ count: gaps.length, gaps });
 });
+
+/**
+ * One-shot dashboard snapshot for first-paint preview. Picks the most recent
+ * competitor set in the store, resolves brand id → name labels, and returns
+ * overview + trends + gaps for the trailing windowDays (default 7) so the UI
+ * can hydrate seeded data on mount without a Run click.
+ */
+competitiveRoutes.get("/competitive/snapshot", (c) => {
+  const windowDays = Number(c.req.query("windowDays") ?? 7);
+  const windowStart = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+  const windowEnd = new Date().toISOString();
+
+  const sets = Array.from(store.competitorSets.values()).sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : -1,
+  );
+  const set = sets[0];
+  if (!set) {
+    return c.json({
+      hasData: false,
+      timeframe: { start: windowStart, end: windowEnd },
+      brandLabels: {},
+      overview: { rows: [] },
+      trends: { seriesByBrand: {} },
+      gaps: [],
+      accountBrandId: null,
+      accountBrandName: null,
+    });
+  }
+
+  const brandIds = [set.accountBrandId, ...set.competitorBrandIds];
+  const brandLabels: Record<string, string> = {};
+  for (const id of brandIds) {
+    const brand = store.brands.get(id);
+    if (brand) brandLabels[id] = brand.name;
+  }
+  const accountBrand = store.brands.get(set.accountBrandId);
+
+  const overview = buildCompetitiveOverview({ windowStart, windowEnd });
+  const trends = buildCompetitiveTrends({ windowStart, windowEnd });
+  const gaps = store.gapEvents.filter((event) => event.brandId === set.accountBrandId);
+
+  return c.json({
+    hasData: overview.rows.length > 0,
+    timeframe: { start: windowStart, end: windowEnd },
+    brandLabels,
+    overview,
+    trends,
+    gaps,
+    accountBrandId: set.accountBrandId,
+    accountBrandName: accountBrand?.name ?? null,
+    competitorBrandIds: set.competitorBrandIds,
+  });
+});

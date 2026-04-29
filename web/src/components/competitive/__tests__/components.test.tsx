@@ -6,7 +6,9 @@ import { WhitespacePanel } from "../WhitespacePanel";
 describe("competitive components", () => {
   test("renders streaming demo defaults and 5 competitor slots", () => {
     const html = renderToStaticMarkup(<CompetitiveSetPicker onCreate={async () => {}} />);
-    expect(html.includes("Competitor 5")).toBeTrue();
+    const nums = (html.match(/picker__num/g) ?? []).length;
+    expect(nums).toBe(5);
+    expect(html.toLowerCase().includes("your brand")).toBeTrue();
     expect(html.includes("Netflix")).toBeTrue();
     expect(html.includes("Disney+")).toBeTrue();
     expect(html.includes("Paramount+")).toBeTrue();
@@ -28,6 +30,6 @@ describe("competitive components", () => {
         ]}
       />,
     );
-    expect(html.includes("Whitespace Opportunities")).toBeTrue();
+    expect(html.toLowerCase().includes("whitespace")).toBeTrue();
   });
 });
