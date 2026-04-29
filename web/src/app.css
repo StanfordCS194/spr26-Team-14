@@ -394,6 +394,144 @@ th {
   gap: 18px;
 }
 
+/* ---------- Metric list (SoV bars + Sentiment gauge) ---------- */
+.metric-list { display: grid; gap: 4px; }
+.metric-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.2fr) minmax(140px, 2fr) 64px;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 6px;
+  margin: 0 -6px;
+  border-radius: 6px;
+  transition: background 160ms ease;
+}
+.metric-row:hover { background: var(--soft); }
+.metric-row__label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+.metric-row__bar {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.metric-row__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 280ms ease-out;
+}
+.metric-row__num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
+  color: var(--ink);
+}
+
+.sentiment-gauge {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(185, 28, 28, 0.25) 0%,
+    var(--line) 50%,
+    rgba(4, 120, 87, 0.28) 100%
+  );
+}
+.sentiment-gauge__pin {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid white;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  background: var(--ink);
+}
+
+/* ---------- Chips (feature tags) ---------- */
+.chip-row { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  transition: background 160ms ease, border-color 160ms ease, transform 80ms ease;
+}
+.chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+  cursor: default;
+}
+
+/* ---------- Bullet list ---------- */
+.bullet-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+.bullet-list li + li { margin-top: 6px; }
+.bullet-list em { font-style: italic; color: var(--accent); }
+
+/* ---------- Stat tile ---------- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.stat {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px 14px;
+  background: var(--soft);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+.stat:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+.stat__label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.stat__value {
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.subhead {
+  margin: 16px 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* ---------- Live Run Theater ---------- */
 .theater {
   margin: 0;

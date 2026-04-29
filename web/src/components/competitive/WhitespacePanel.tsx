@@ -3,25 +3,38 @@ import type { GapEvent } from "../../types";
 export function WhitespacePanel({ gaps }: { gaps: GapEvent[] }) {
   const whitespace = gaps.filter((gap) => gap.gapType === "whitespace");
   const exclusion = gaps.filter((gap) => gap.gapType === "prompt_exclusion");
+  const praise = gaps.filter((gap) => gap.gapType === "feature_praise_gap");
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Gap Analysis Highlights</h3>
-      <p>
-        Prompt Exclusion Gaps: <strong>{exclusion.length}</strong>
+    <section className="panel wide-panel">
+      <h3>Whitespace opportunities</h3>
+      <p className="muted">
+        Categories and prompts where AI assistants don&rsquo;t firmly recommend any brand yet.
       </p>
-      <p>
-        Whitespace Opportunities: <strong>{whitespace.length}</strong>
-      </p>
+      <div className="stat-row">
+        <Stat label="Whitespace" value={whitespace.length} />
+        <Stat label="Exclusion gaps" value={exclusion.length} />
+        <Stat label="Praise gaps" value={praise.length} />
+      </div>
       {whitespace.length > 0 && (
-        <ul>
+        <ul className="bullet-list">
           {whitespace.map((gap) => (
             <li key={gap.id}>
-              Prompt run {gap.promptRunId} has no recommended brand; category {gap.categoryKey ?? "general"}.
+              Category <em>{gap.categoryKey ?? "general"}</em> — no brand owns the consensus answer.
+              {gap.evidence[0] && <span className="muted"> {gap.evidence[0]}</span>}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="stat">
+      <div className="stat__label">{label}</div>
+      <div className="stat__value">{value}</div>
+    </div>
   );
 }
