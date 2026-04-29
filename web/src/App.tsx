@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import "./app.css";
 import { CompetitivePage } from "./pages/competitive";
 import { MonitoringPage } from "./pages/monitoring";
+import { RecommendationsPage } from "./pages/recommendations";
+import { SourcesPage } from "./pages/sources";
+import { DEMO_BRAND_NAME } from "./seed/demo-content";
 import type { BusinessProfile } from "./types";
 
 const API_BASE =
@@ -71,7 +74,9 @@ export function App() {
       .then((res) => res.json())
       .then((body: { profiles: BusinessProfile[] }) => {
         setProfiles(body.profiles);
-        setActiveProfileId(body.profiles[0]?.id ?? "");
+        // Prefer the seeded demo brand if it exists, otherwise the first profile.
+        const seeded = body.profiles.find((p) => p.name === DEMO_BRAND_NAME);
+        setActiveProfileId((seeded ?? body.profiles[0])?.id ?? "");
       })
       .catch(() => setError("Could not load business profiles."))
       .finally(() => setLoading(false));
@@ -184,22 +189,10 @@ export function ProfileDashboard({
           <MonitoringPage profile={profile} />
         ) : activePage === "benchmarking" ? (
           <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+        ) : activePage === "recommendations" ? (
+          <RecommendationsPage profile={profile} />
         ) : (
-          <article className="panel">
-            <p className="muted">{page[1]}</p>
-            <h2>{profile.name}</h2>
-            <p>{page[2]}</p>
-            <dl>
-              <div>
-                <dt>Website</dt>
-                <dd>{profile.website}</dd>
-              </div>
-              <div>
-                <dt>Description</dt>
-                <dd>{profile.description}</dd>
-              </div>
-            </dl>
-          </article>
+          <SourcesPage profile={profile} />
         )}
 
         {error && <p className="error">{error}</p>}
