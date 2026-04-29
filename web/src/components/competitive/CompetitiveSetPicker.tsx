@@ -8,9 +8,9 @@ interface Props {
   onSave?: (names: string[]) => Promise<void>;
 }
 
-/** Demo cohort: Sephora vs five beauty retail competitors */
-const DEFAULT_ACCOUNT = "Sephora";
-const DEFAULT_COMPETITORS = ["Ulta", "Bluemercury", "SpaceNK", "SallyBeauty", "Olive Young"];
+/** Demo cohort: Netflix vs five major streaming competitors */
+const DEFAULT_ACCOUNT = "Netflix";
+const DEFAULT_COMPETITORS = ["Disney+", "Max", "Amazon Prime Video", "Apple TV+", "Paramount+"];
 
 export function CompetitiveSetPicker({
   accountBrandName: initialAccountBrandName = DEFAULT_ACCOUNT,
