@@ -18,31 +18,33 @@ export function CompetitiveSetPicker({ onCreate, busy }: Props) {
   }, [accountBrandName, competitorNames]);
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16, marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0 }}>Competitive Set — Demo (5 competitors)</h3>
-      <label style={{ display: "block", marginBottom: 8 }}>
+    <section className="panel">
+      <h3>Competitive Set</h3>
+      <div className="form-grid">
+      <label>
         Your brand
         <input
+          className="text-input"
           value={accountBrandName}
           onChange={(e) => setAccountBrandName(e.target.value)}
-          style={{ width: "100%", marginTop: 4 }}
         />
       </label>
       {competitorNames.map((name, idx) => (
-        <label key={idx} style={{ display: "block", marginBottom: 8 }}>
+        <label key={idx}>
           Competitor {idx + 1}
           <input
+            className="text-input"
             value={name}
             onChange={(e) => {
               const next = [...competitorNames];
               next[idx] = e.target.value;
               setCompetitorNames(next);
             }}
-            style={{ width: "100%", marginTop: 4 }}
           />
         </label>
       ))}
       <button
+        className="primary-button"
         type="button"
         onClick={() => onCreate({ accountBrandName: accountBrandName.trim(), competitorNames })}
         disabled={!canSubmit || busy}
@@ -50,11 +52,12 @@ export function CompetitiveSetPicker({ onCreate, busy }: Props) {
         {busy ? "Running 20-question benchmark..." : "Run benchmark"}
       </button>
       {busy && (
-        <p style={{ marginBottom: 0, color: "#555" }}>
+        <p className="muted">
           Generating brand-perception summaries and comparisons. This can take a bit while the server fans out the LLM
           calls.
         </p>
       )}
+      </div>
     </section>
   );
 }

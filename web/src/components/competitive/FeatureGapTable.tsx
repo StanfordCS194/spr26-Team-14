@@ -12,9 +12,9 @@ export function FeatureGapTable({ rows, gaps, brandLabels, accountBrandName = "Y
   const label = (id: string) => brandLabels?.[id] ?? id;
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Feature Strengths & Weaknesses</h3>
-      <table width="100%" style={{ marginBottom: 16 }}>
+    <section className="panel">
+      <h3>Feature Strengths & Weaknesses</h3>
+      <table className="data-table">
         <thead>
           <tr>
             <th align="left">Brand</th>
@@ -34,7 +34,7 @@ export function FeatureGapTable({ rows, gaps, brandLabels, accountBrandName = "Y
       {praiseGaps.length === 0 ? (
         <p>No feature praise gaps detected.</p>
       ) : (
-        <ul>
+        <ul className="gap-list">
           {praiseGaps.map((gap) => (
             <li key={gap.id}>
               {gap.competitorBrandId ? label(gap.competitorBrandId) : "Competitor"} praised on &quot;
