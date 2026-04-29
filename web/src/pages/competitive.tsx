@@ -1,10 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { CompetitiveSetPicker } from "../components/competitive/CompetitiveSetPicker";
 import { FeatureGapTable } from "../components/competitive/FeatureGapTable";
+import { LiveRunTheater } from "../components/competitive/LiveRunTheater";
 import { SentimentComparison } from "../components/competitive/SentimentComparison";
 import { ShareOfVoiceChart } from "../components/competitive/ShareOfVoiceChart";
 import { WhitespacePanel } from "../components/competitive/WhitespacePanel";
 import type { CompetitiveProgressEvent, GapEvent, OverviewResponse, TrendsResponse } from "../types";
+
+interface SnapshotResponse {
+  hasData: boolean;
+  timeframe: { start: string; end: string };
+  brandLabels: Record<string, string>;
+  overview: OverviewResponse;
+  trends: TrendsResponse;
+  gaps: GapEvent[];
+  accountBrandId: string | null;
+  accountBrandName: string | null;
+  competitorBrandIds?: string[];
+}
 
 const API_BASE =
   import.meta.env.DEV === true ? "/api" : (import.meta.env.VITE_API_URL ?? "http://localhost:3000");
@@ -62,7 +75,25 @@ export function CompetitivePage({
   const progressSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE}/competitive/snapshot?windowDays=7`)
+      .then((res) => (res.ok ? (res.json() as Promise<SnapshotResponse>) : null))
+      .then((snap) => {
+        if (!snap || cancelled || !snap.hasData) return;
+        setOverview(snap.overview);
+        setTrends(snap.trends);
+        setGaps(snap.gaps);
+        setBrandLabels(snap.brandLabels);
+        if (snap.accountBrandId) setAccountBrandId(snap.accountBrandId);
+        if (snap.competitorBrandIds) setCompetitorBrandIds(snap.competitorBrandIds);
+        setLastWindow({ windowStart: snap.timeframe.start, windowEnd: snap.timeframe.end });
+      })
+      .catch(() => {
+        /* leave dashboard empty if snapshot fetch fails */
+      });
+
     return () => {
+      cancelled = true;
       progressSourceRef.current?.close();
       progressSourceRef.current = null;
     };
@@ -278,15 +309,15 @@ export function CompetitivePage({
   }
 
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "Inter, Arial, sans-serif" }}>
-      <h1>Competitive Benchmarking</h1>
-      <p style={{ marginTop: 0 }}>
-        Each run uses <strong>10 brand-specific prompts</strong> (with each retailer’s name) plus{" "}
-        <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per retailer;
-        outputs are compared and rolled into share of voice and sentiment. Default slate:{" "}
-        <strong>Sephora</strong> vs <strong>Ulta</strong>, <strong>Bluemercury</strong>, <strong>SpaceNK</strong>,{" "}
-        <strong>SallyBeauty</strong>, and <strong>Olive Young</strong>.
-      </p>
+    <>
+      <section className="panel wide-panel">
+        <h2>Competitive Benchmarking</h2>
+        <p className="muted">
+          Each run uses <strong>10 brand-specific prompts</strong> (with each brand’s name) plus{" "}
+          <strong>10 category-wide prompts</strong>, all answered per brand; outputs are compared and rolled
+          into share of voice, sentiment, feature gaps, and whitespace.
+        </p>
+      </section>
 
       <CompetitiveSetPicker
         accountBrandName={businessName}
@@ -295,90 +326,114 @@ export function CompetitivePage({
         onCreate={createSet}
         onSave={saveCompetitors}
       />
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {error && <p className="error">{error}</p>}
 
-      {(Object.keys(progressByBrand).length > 0 || judgeLines.length > 0 || busy) && (
-        <section style={{ marginBottom: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Live Run Stream</h3>
-          <p style={{ marginTop: 0 }}>{progressStatus}</p>
-          {judgeLines.length > 0 && (
-            <div style={{ marginBottom: 12, padding: 12, borderRadius: 6, background: "#fafafa" }}>
-              <strong>Judge</strong>
-              <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: 12 }}>
-                {judgeLines.join("\n")}
-              </pre>
-            </div>
-          )}
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-            {Object.entries(progressByBrand).map(([brandId, box]) => (
-              <article
-                key={brandId}
-                style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, background: "#fff" }}
-              >
-                <h4 style={{ margin: "0 0 8px" }}>{box.brandName}</h4>
-                <p style={{ margin: "0 0 8px", color: "#555" }}>{box.status}</p>
-                <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: 12 }}>
-                  {box.lines.length ? box.lines.join("\n") : "Waiting for streamed output..."}
-                </pre>
-              </article>
-            ))}
-          </section>
-        </section>
-      )}
+      <LiveRunTheater
+        busy={busy}
+        progressStatus={progressStatus}
+        judgeLines={judgeLines}
+        progressByBrand={progressByBrand}
+      />
+
 
       {overview && (
         <>
-          <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div className="charts-grid">
             <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
             <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
-          </section>
+          </div>
           <FeatureGapTable
             rows={overview.rows}
             gaps={gaps}
             brandLabels={brandLabels}
             accountBrandName={accountBrandName}
           />
-          <section style={{ marginTop: 16 }}>
-            <WhitespacePanel gaps={gaps} />
-          </section>
+          <WhitespacePanel gaps={gaps} />
         </>
       )}
 
-      <section style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Trend Snapshot (7 days)</h3>
-        {!trends ? (
-          <p>No trend data yet.</p>
+      <section className="panel wide-panel">
+        <h3>Trend snapshot</h3>
+        <p className="muted">Daily averages across every prompt run — share of voice and sentiment for the last 7 days.</p>
+        {!trends || Object.keys(trends.seriesByBrand).length === 0 ? (
+          <p className="muted">Run a benchmark to populate trend lines.</p>
         ) : (
-          <pre style={{ overflowX: "auto", margin: 0 }}>
-            {JSON.stringify(
-              Object.fromEntries(
-                Object.entries(trends.seriesByBrand).map(([id, pts]) => [brandLabels[id] ?? id, pts]),
-              ),
-              null,
-              2,
-            )}
-          </pre>
+          <div className="trend-grid">
+            {Object.entries(trends.seriesByBrand).map(([id, pts]) => {
+              const byDay = new Map<string, { sov: number; sent: number; n: number }>();
+              for (const point of pts) {
+                const day = point.t.slice(0, 10);
+                const existing = byDay.get(day) ?? { sov: 0, sent: 0, n: 0 };
+                byDay.set(day, {
+                  sov: existing.sov + point.sov,
+                  sent: existing.sent + point.sentiment,
+                  n: existing.n + 1,
+                });
+              }
+              const days = Array.from(byDay.entries())
+                .map(([day, agg]) => ({ day, sov: agg.sov / agg.n, sent: agg.sent / agg.n }))
+                .sort((a, b) => (a.day < b.day ? -1 : 1));
+
+              return (
+                <div className="trend-grid__brand" key={id}>
+                  <div className="trend-grid__name">{brandLabels[id] ?? id}</div>
+                  <table className="trend-mini">
+                    <tbody>
+                      {days.map((d) => {
+                        const sentTone =
+                          d.sent >= 0.25 ? "var(--success)" : d.sent <= -0.25 ? "var(--danger)" : "var(--muted)";
+                        return (
+                          <tr key={d.day}>
+                            <td className="trend-mini__day">{d.day.slice(5)}</td>
+                            <td>
+                              <span className="trend-mini__bar" aria-hidden="true">
+                                <span
+                                  className="trend-mini__bar-fill"
+                                  style={{ width: `${Math.min(100, d.sov * 100)}%` }}
+                                />
+                              </span>
+                            </td>
+                            <td className="trend-mini__num">{(d.sov * 100).toFixed(0)}%</td>
+                            <td className="trend-mini__sent" style={{ color: sentTone }}>
+                              {d.sent >= 0 ? "+" : ""}
+                              {d.sent.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
-      <section style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Run Configuration</h3>
-        <p>
-          Account: {accountBrandName} ({accountBrandId || "run to assign IDs"})
-        </p>
-        <p>
-          Competitors:{" "}
-          {competitorBrandIds.length
-            ? competitorBrandIds.map((id) => brandLabels[id] ?? id).join(", ")
-            : "Ulta, Bluemercury, SpaceNK, SallyBeauty, Olive Young (defaults)"}
-        </p>
-        <p>
-          Window:{" "}
-          {lastWindow
-            ? `${lastWindow.windowStart} – ${lastWindow.windowEnd}`
-            : "Run the benchmark to set the query window"}
-        </p>
+      <section className="panel wide-panel">
+        <h3>Run configuration</h3>
+        <p className="muted">Last execution context.</p>
+        <dl>
+          <div>
+            <dt>Account</dt>
+            <dd>
+              {accountBrandName} <span className="muted">({accountBrandId || "—"})</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Competitors</dt>
+            <dd>
+              {competitorBrandIds.length
+                ? competitorBrandIds.map((id) => brandLabels[id] ?? id).join(", ")
+                : "(defaults)"}
+            </dd>
+          </div>
+          <div>
+            <dt>Window</dt>
+            <dd>{lastWindow ? `${lastWindow.windowStart} → ${lastWindow.windowEnd}` : "—"}</dd>
+          </div>
+        </dl>
       </section>
-    </main>
+    </>
   );
 }

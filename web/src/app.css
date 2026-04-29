@@ -387,6 +387,13 @@ th {
   border-radius: 6px;
 }
 
+/* ---------- Charts side-by-side ---------- */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 18px;
+}
+
 /* ---------- Live Run Theater ---------- */
 .theater {
   margin: 0;
