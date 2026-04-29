@@ -22,6 +22,10 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
       }}
     >
       <h1>Set up your brand</h1>
+      <p className="muted">
+        We&rsquo;ll generate starter monitoring prompts and a competitive set from your website and brand
+        description.
+      </p>
       <label>
         Business name
         <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
@@ -50,19 +54,20 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
 }
 
 type BusinessProfileInput = Pick<BusinessProfile, "name" | "website" | "description">;
-const pages = [
-  ["monitoring", "Monitoring", "Track AI mention frequency, sentiment, share of voice, and trends over time."],
-  ["benchmarking", "Benchmarking", "Compare your brand against competitors across AI answers."],
-  ["recommendations", "Recommendations", "Prioritized fix-it ideas will appear here after monitoring finds gaps."],
-  ["source-tracking", "Source Tracking", "Cited Reddit threads, publications, reviews, and other sources will appear here."],
+
+const navItems = [
+  { key: "monitoring", label: "Monitoring", description: "AI mention frequency, sentiment, and trends." },
+  { key: "benchmarking", label: "Benchmarking", description: "Compare your brand against competitors in AI answers." },
+  { key: "recommendations", label: "Recommendations", description: "Prioritized fix-it ideas from detected gaps." },
+  { key: "sources", label: "Sources", description: "Reddit, publications, reviews, and other sources AI cites." },
 ] as const;
 
-type PageKey = (typeof pages)[number][0];
+type PageKey = (typeof navItems)[number]["key"];
 
 export function App() {
   const [profiles, setProfiles] = useState<BusinessProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState("");
-  const [activePage, setActivePage] = useState<PageKey>("monitoring");
+  const [activePage, setActivePage] = useState<PageKey>("benchmarking");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -94,7 +99,7 @@ export function App() {
   }
 
   if (loading) {
-    return <main className="page center-page">Loading...</main>;
+    return <main className="page center-page">Loading…</main>;
   }
 
   if (!profiles.length) {
@@ -137,15 +142,36 @@ export function ProfileDashboard({
   profiles: BusinessProfile[];
 }) {
   const profile = profiles.find((item) => item.id === activeProfileId) ?? profiles[0]!;
-  const page = pages.find(([key]) => key === activePage) ?? pages[0];
+  const activeNav = navItems.find((item) => item.key === activePage) ?? navItems[0];
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
-        <strong>Perception</strong>
-        <label>
-          Business
+      <aside className="sidebar" aria-label="Primary navigation">
+        <div className="brand-lockup">
+          <span className="brand-mark">P</span>
+          <div className="brand-lockup__text">
+            <strong>Perception</strong>
+            <span>AI visibility</span>
+          </div>
+        </div>
+
+        <nav className="nav-list" aria-label="Sections">
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={activePage === item.key ? "nav-item active" : "nav-item"}
+              onClick={() => onSelectPage(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <span className="sidebar-footer__label">Active brand</span>
           <select
+            className="sidebar-profile"
             aria-label="Active business profile"
             value={profile.id}
             onChange={(event) => onSelectProfile(event.target.value)}
@@ -156,28 +182,19 @@ export function ProfileDashboard({
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Section
-          <select value={activePage} onChange={(event) => onSelectPage(event.target.value as PageKey)}>
-            {pages.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <button type="button" className="sidebar-add" onClick={onAddProfile}>
+            + Add brand
+          </button>
+        </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="muted">Business profile</p>
+            <p className="topbar__eyebrow">{activeNav.label}</p>
             <h1>{profile.name}</h1>
+            <p className="topbar__sub">{activeNav.description}</p>
           </div>
-          <button type="button" onClick={onAddProfile}>
-            New profile
-          </button>
         </header>
 
         {activePage === "monitoring" ? (
@@ -185,10 +202,10 @@ export function ProfileDashboard({
         ) : activePage === "benchmarking" ? (
           <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
         ) : (
-          <article className="panel">
-            <p className="muted">{page[1]}</p>
-            <h2>{profile.name}</h2>
-            <p>{page[2]}</p>
+          <article className="panel wide-panel placeholder-panel">
+            <p className="muted">{activeNav.label}</p>
+            <h2>Coming soon for {profile.name}</h2>
+            <p>{activeNav.description}</p>
             <dl>
               <div>
                 <dt>Website</dt>

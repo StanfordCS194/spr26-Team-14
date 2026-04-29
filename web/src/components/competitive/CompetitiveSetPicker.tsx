@@ -8,9 +8,9 @@ interface Props {
   onSave?: (names: string[]) => Promise<void>;
 }
 
-/** Demo cohort: Sephora vs five beauty retail competitors */
-const DEFAULT_ACCOUNT = "Sephora";
-const DEFAULT_COMPETITORS = ["Ulta", "Bluemercury", "SpaceNK", "SallyBeauty", "Olive Young"];
+/** Demo cohort: Netflix vs five major streaming competitors */
+const DEFAULT_ACCOUNT = "Netflix";
+const DEFAULT_COMPETITORS = ["Disney+", "Max", "Amazon Prime Video", "Apple TV+", "Paramount+"];
 
 export function CompetitiveSetPicker({
   accountBrandName: initialAccountBrandName = DEFAULT_ACCOUNT,
@@ -30,48 +30,71 @@ export function CompetitiveSetPicker({
   }, [accountBrandName, competitorNames]);
 
   return (
-    <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16, marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0 }}>Competitive Set — Demo (5 competitors)</h3>
-      <label style={{ display: "block", marginBottom: 8 }}>
-        Your brand
+    <section className="panel wide-panel picker">
+      <div className="picker__head">
+        <h3>Competitive set</h3>
+        <span className="picker__count">5 competitors</span>
+      </div>
+      <p className="muted picker__hint">
+        Pick your brand and five competitors. We&rsquo;ll fan twenty perception prompts across every brand and
+        compare the answers.
+      </p>
+
+      <div className="picker__field picker__field--solo">
+        <label className="picker__label">Your brand</label>
         <input
+          className="picker__input"
           value={accountBrandName}
           onChange={(e) => setAccountBrandName(e.target.value)}
-          style={{ width: "100%", marginTop: 4 }}
+          placeholder="e.g. Netflix"
+          spellCheck={false}
         />
-      </label>
-      {competitorNames.map((name, idx) => (
-        <label key={idx} style={{ display: "block", marginBottom: 8 }}>
-          Competitor {idx + 1}
-          <input
-            value={name}
-            onChange={(e) => {
-              const next = [...competitorNames];
-              next[idx] = e.target.value;
-              setCompetitorNames(next);
-            }}
-            style={{ width: "100%", marginTop: 4 }}
-          />
-        </label>
-      ))}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={() => onSave?.(competitorNames)} disabled={!canSubmit || busy || !onSave}>
-          Save competitors
-        </button>
+      </div>
+
+      <div className="picker__competitors">
+        {competitorNames.map((name, idx) => (
+          <div className="picker__field" key={idx}>
+            <label className="picker__label">
+              <span className="picker__num">{idx + 1}</span>
+              Competitor
+            </label>
+            <input
+              className="picker__input"
+              value={name}
+              onChange={(e) => {
+                const next = [...competitorNames];
+                next[idx] = e.target.value;
+                setCompetitorNames(next);
+              }}
+              spellCheck={false}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="picker__actions">
         <button
           type="button"
+          className="picker__primary"
           onClick={() => onCreate({ accountBrandName: accountBrandName.trim(), competitorNames })}
           disabled={!canSubmit || busy}
         >
-          {busy ? "Running 20-question benchmark..." : "Run benchmark"}
+          {busy ? "Running benchmark…" : "Run benchmark"}
         </button>
+        <button
+          type="button"
+          className="picker__secondary"
+          onClick={() => onSave?.(competitorNames)}
+          disabled={!canSubmit || busy || !onSave}
+        >
+          Save competitors
+        </button>
+        {busy && (
+          <span className="picker__status">
+            Streaming brand summaries and judge comparisons in parallel.
+          </span>
+        )}
       </div>
-      {busy && (
-        <p style={{ marginBottom: 0, color: "#555" }}>
-          Generating brand-perception summaries and comparisons. This can take a bit while the server fans out the LLM
-          calls.
-        </p>
-      )}
     </section>
   );
 }

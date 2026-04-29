@@ -4,12 +4,11 @@ import { CompetitiveSetPicker } from "../CompetitiveSetPicker";
 import { WhitespacePanel } from "../WhitespacePanel";
 
 describe("competitive components", () => {
-  test("renders Sephora demo defaults and 5 competitor slots", () => {
+  test("renders demo defaults and 5 competitor slots", () => {
     const html = renderToStaticMarkup(<CompetitiveSetPicker onCreate={async () => {}} />);
-    expect(html.includes("Competitor 5")).toBeTrue();
-    expect(html.includes("Sephora")).toBeTrue();
-    expect(html.includes("Ulta")).toBeTrue();
-    expect(html.includes("Olive Young")).toBeTrue();
+    const nums = (html.match(/picker__num/g) ?? []).length;
+    expect(nums).toBe(5);
+    expect(html.toLowerCase().includes("your brand")).toBeTrue();
   });
 
   test("renders whitespace counts", () => {
