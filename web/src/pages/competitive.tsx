@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CompetitiveSetPicker } from "../components/competitive/CompetitiveSetPicker";
 import { FeatureGapTable } from "../components/competitive/FeatureGapTable";
+import { LiveRunTheater } from "../components/competitive/LiveRunTheater";
 import { SentimentComparison } from "../components/competitive/SentimentComparison";
 import { ShareOfVoiceChart } from "../components/competitive/ShareOfVoiceChart";
 import { WhitespacePanel } from "../components/competitive/WhitespacePanel";
@@ -257,34 +258,13 @@ export function CompetitivePage() {
       <CompetitiveSetPicker onCreate={createSet} busy={busy} />
       {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-      {(Object.keys(progressByBrand).length > 0 || judgeLines.length > 0 || busy) && (
-        <section style={{ marginBottom: 16, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Live Run Stream</h3>
-          <p style={{ marginTop: 0 }}>{progressStatus}</p>
-          {judgeLines.length > 0 && (
-            <div style={{ marginBottom: 12, padding: 12, borderRadius: 6, background: "#fafafa" }}>
-              <strong>Judge</strong>
-              <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: 12 }}>
-                {judgeLines.join("\n")}
-              </pre>
-            </div>
-          )}
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-            {Object.entries(progressByBrand).map(([brandId, box]) => (
-              <article
-                key={brandId}
-                style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, background: "#fff" }}
-              >
-                <h4 style={{ margin: "0 0 8px" }}>{box.brandName}</h4>
-                <p style={{ margin: "0 0 8px", color: "#555" }}>{box.status}</p>
-                <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: 12 }}>
-                  {box.lines.length ? box.lines.join("\n") : "Waiting for streamed output..."}
-                </pre>
-              </article>
-            ))}
-          </section>
-        </section>
-      )}
+      <LiveRunTheater
+        busy={busy}
+        progressStatus={progressStatus}
+        judgeLines={judgeLines}
+        progressByBrand={progressByBrand}
+      />
+
 
       {overview && (
         <>
