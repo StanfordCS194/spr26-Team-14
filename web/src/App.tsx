@@ -6,6 +6,7 @@ import { RecommendationsPage } from "./pages/recommendations";
 import { SourcesPage } from "./pages/sources";
 import { DEMO_BRAND_NAME } from "./seed/demo-content";
 import type { BusinessProfile } from "./types";
+import logoUrl from "../../assets/logo.svg";
 
 const API_BASE =
   import.meta.env.DEV === true ? "/api" : (import.meta.env.VITE_API_URL ?? "http://localhost:3000");
@@ -153,7 +154,7 @@ export function ProfileDashboard({
     <main className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
         <div className="brand-lockup">
-          <span className="brand-mark">P</span>
+          <img className="brand-mark" src={logoUrl} alt="" aria-hidden="true" />
           <div className="brand-lockup__text">
             <strong>Perception</strong>
             <span>AI visibility</span>
