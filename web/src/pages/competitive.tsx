@@ -281,11 +281,11 @@ export function CompetitivePage({
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "Inter, Arial, sans-serif" }}>
       <h1>Competitive Benchmarking</h1>
       <p style={{ marginTop: 0 }}>
-        Each run uses <strong>10 brand-specific prompts</strong> (with each retailer’s name) plus{" "}
-        <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per retailer;
-        outputs are compared and rolled into share of voice and sentiment. Default slate:{" "}
-        <strong>Sephora</strong> vs <strong>Ulta</strong>, <strong>Bluemercury</strong>, <strong>SpaceNK</strong>,{" "}
-        <strong>SallyBeauty</strong>, and <strong>Olive Young</strong>.
+        Each run uses <strong>10 brand-specific prompts</strong> (with each brand’s name) plus{" "}
+        <strong>10 category-wide prompts</strong> (leader, best, most reliable, etc.), all answered per brand;
+        outputs are compared and rolled into share of voice and sentiment. Demo slate:{" "}
+        <strong>Netflix</strong> vs <strong>Disney+</strong>, <strong>Max</strong>,{" "}
+        <strong>Amazon Prime Video</strong>, <strong>Apple TV+</strong>, and <strong>Paramount+</strong>.
       </p>
 
       <CompetitiveSetPicker
