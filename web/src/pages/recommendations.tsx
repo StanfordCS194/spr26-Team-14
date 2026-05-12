@@ -1,9 +1,11 @@
+import { useEffect, useMemo, useState } from "react"
+import { API_BASE } from "../api"
 import {
   DEMO_BRAND_NAME,
   NETFLIX_RECOMMENDATIONS,
   type Recommendation,
 } from "../seed/demo-content"
-import type { BusinessProfile } from "../types"
+import type { BusinessProfile, RecommendationFeedback, RecommendationRating } from "../types"
 
 const IMPACT_ORDER: Record<Recommendation["impact"], number> = {
   high: 0,
@@ -34,9 +36,14 @@ const SummaryStat = ({ label, value }: SummaryStatProps) => (
   </div>
 )
 
-type RecommendationItemProps = { rec: Recommendation; rank: number }
+type RecommendationItemProps = {
+  rec: Recommendation
+  rank: number
+  rating?: RecommendationRating
+  onRate: (recommendationId: string, rating: RecommendationRating) => void
+}
 
-const RecommendationItem = ({ rec, rank }: RecommendationItemProps) => {
+const RecommendationItem = ({ rec, rank, rating, onRate }: RecommendationItemProps) => {
   const titleId = `rec-title-${rec.id}`
   return (
     <article className="card" aria-labelledby={titleId}>
@@ -53,13 +60,69 @@ const RecommendationItem = ({ rec, rank }: RecommendationItemProps) => {
       <p className="rec-item__body">{rec.evidence}</p>
       <p className="subhead">Suggested action</p>
       <p className="rec-item__body">{rec.action}</p>
+      <div className="rec-feedback" aria-label={`Feedback for ${rec.title}`}>
+        <span className="rec-feedback__label">Was this recommendation useful?</span>
+        <div className="rec-feedback__actions">
+          <button
+            type="button"
+            className={rating === "good" ? "feedback-button feedback-button--good active" : "feedback-button feedback-button--good"}
+            aria-pressed={rating === "good"}
+            onClick={() => onRate(rec.id, "good")}
+          >
+            Good
+          </button>
+          <button
+            type="button"
+            className={rating === "bad" ? "feedback-button feedback-button--bad active" : "feedback-button feedback-button--bad"}
+            aria-pressed={rating === "bad"}
+            onClick={() => onRate(rec.id, "bad")}
+          >
+            Bad
+          </button>
+        </div>
+      </div>
     </article>
   )
 }
 
 export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) => {
   const isSeededBrand = profile.name === DEMO_BRAND_NAME
-  const recs = isSeededBrand ? sortRecommendations(NETFLIX_RECOMMENDATIONS) : []
+  const recs = useMemo(() => (isSeededBrand ? sortRecommendations(NETFLIX_RECOMMENDATIONS) : []), [isSeededBrand])
+  const [ratings, setRatings] = useState<Record<string, RecommendationRating>>({})
+  const [feedbackError, setFeedbackError] = useState("")
+
+  useEffect(() => {
+    setRatings({})
+    setFeedbackError("")
+    fetch(`${API_BASE}/business-profiles/${profile.id}/recommendation-feedback`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((body: { feedback: RecommendationFeedback[] }) => {
+        setRatings(
+          Object.fromEntries(body.feedback.map((item) => [item.recommendationId, item.rating])),
+        )
+      })
+      .catch(() => setFeedbackError("Could not load recommendation feedback."))
+  }, [profile.id])
+
+  async function rateRecommendation(recommendationId: string, rating: RecommendationRating) {
+    const previousRating = ratings[recommendationId]
+    setFeedbackError("")
+    setRatings((current) => ({ ...current, [recommendationId]: rating }))
+    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/recommendation-feedback`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recommendationId, rating }),
+    })
+    if (!res.ok) {
+      setRatings((current) => {
+        const next = { ...current }
+        if (previousRating) next[recommendationId] = previousRating
+        else delete next[recommendationId]
+        return next
+      })
+      setFeedbackError("Could not save recommendation feedback.")
+    }
+  }
 
   if (recs.length === 0) {
     return (
@@ -93,9 +156,16 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
       <div className="block">
         <h2 className="block__title">Prioritised actions</h2>
         <p className="muted">High impact first. Each card maps to a detected gap or whitespace cue.</p>
+        {feedbackError && <p className="error">{feedbackError}</p>}
         <div className="rec-stack">
           {recs.map((rec, i) => (
-            <RecommendationItem key={rec.id} rec={rec} rank={i + 1} />
+            <RecommendationItem
+              key={rec.id}
+              rec={rec}
+              rank={i + 1}
+              rating={ratings[rec.id]}
+              onRate={rateRecommendation}
+            />
           ))}
         </div>
       </div>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import "./app.css";
+import { API_BASE } from "./api";
+import { AdminPage } from "./pages/admin";
 import { CompetitivePage } from "./pages/competitive";
 import { MonitoringPage } from "./pages/monitoring";
 import { RecommendationsPage } from "./pages/recommendations";
@@ -7,9 +9,6 @@ import { SourcesPage } from "./pages/sources";
 import { DEMO_BRAND_NAME } from "./seed/demo-content";
 import type { BusinessProfile } from "./types";
 import logoUrl from "../../assets/logo.svg";
-
-const API_BASE =
-  import.meta.env.DEV === true ? "/api" : (import.meta.env.VITE_API_URL ?? "http://localhost:3000");
 
 export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfileInput) => void }) {
   const [form, setForm] = useState({ name: "", website: "", description: "" });
@@ -64,6 +63,7 @@ const navItems = [
   { key: "benchmarking", label: "Benchmarking", description: "Compare your brand against competitors in AI answers." },
   { key: "recommendations", label: "Recommendations", description: "Prioritized fix-it ideas from detected gaps." },
   { key: "sources", label: "Sources", description: "Reddit, publications, reviews, and other sources AI cites." },
+  { key: "admin", label: "Admin", description: "Internal feedback quality metrics and system health." },
 ] as const;
 
 type PageKey = (typeof navItems)[number]["key"];
@@ -211,8 +211,10 @@ export function ProfileDashboard({
           <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
         ) : activePage === "recommendations" ? (
           <RecommendationsPage profile={profile} />
-        ) : (
+        ) : activePage === "sources" ? (
           <SourcesPage profile={profile} />
+        ) : (
+          <AdminPage profile={profile} />
         )}
 
         {error && <p className="error">{error}</p>}

@@ -44,6 +44,15 @@ export function runMigrations() {
       created_at TEXT NOT NULL,
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS recommendation_feedback (
+      business_profile_id TEXT NOT NULL,
+      recommendation_id TEXT NOT NULL,
+      rating TEXT NOT NULL CHECK (rating IN ('good', 'bad')),
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (business_profile_id, recommendation_id),
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
   `);
 }
 

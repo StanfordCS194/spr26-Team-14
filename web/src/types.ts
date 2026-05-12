@@ -20,6 +20,26 @@ export interface MonitoringResponse {
   prompts: MonitoringPrompt[];
 }
 
+export type RecommendationRating = "good" | "bad";
+
+export interface RecommendationFeedback {
+  businessProfileId: string;
+  recommendationId: string;
+  rating: RecommendationRating;
+  updatedAt: string;
+}
+
+export interface RecommendationFeedbackMetrics {
+  total: number;
+  good: number;
+  bad: number;
+  unrated: number;
+}
+
+export interface AdminMetricsResponse {
+  recommendationFeedback: RecommendationFeedbackMetrics;
+}
+
 export interface OverviewRow {
   brandId: string;
   shareOfVoice: number;

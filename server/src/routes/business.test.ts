@@ -65,3 +65,40 @@ test("adds monitoring prompts for a business profile", async () => {
   expect(listBody.prompts).toHaveLength(1);
   expect(listBody.prompts[0].mentionSentiment).toBeTruthy();
 });
+
+test("saves recommendation feedback and reports admin metrics", async () => {
+  const profile = businessProfiles.create({
+    name: `Feedback ${crypto.randomUUID()}`,
+    website: "https://feedback.test",
+    description: "Feedback test profile.",
+  });
+
+  const saveRes = await app.request(`/business-profiles/${profile.id}/recommendation-feedback`, {
+    method: "PUT",
+    body: JSON.stringify({ recommendationId: "rec-1", rating: "good" }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(saveRes.status).toBe(200);
+  expect((await saveRes.json()).rating).toBe("good");
+
+  const updateRes = await app.request(`/business-profiles/${profile.id}/recommendation-feedback`, {
+    method: "PUT",
+    body: JSON.stringify({ recommendationId: "rec-1", rating: "bad" }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(updateRes.status).toBe(200);
+
+  const listRes = await app.request(`/business-profiles/${profile.id}/recommendation-feedback`);
+  const listBody = await listRes.json();
+  expect(listBody.feedback).toHaveLength(1);
+  expect(listBody.feedback[0].rating).toBe("bad");
+
+  const metricsRes = await app.request(`/business-profiles/${profile.id}/admin/metrics?recommendationCount=3`);
+  expect(metricsRes.status).toBe(200);
+  expect((await metricsRes.json()).recommendationFeedback).toEqual({
+    total: 1,
+    good: 0,
+    bad: 1,
+    unrated: 2,
+  });
+});

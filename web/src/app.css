@@ -686,6 +686,78 @@ th {
   line-height: 1.55;
   color: var(--ink);
 }
+.rec-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.rec-feedback__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.rec-feedback__actions {
+  display: flex;
+  gap: 6px;
+}
+.feedback-button {
+  background: var(--surface);
+  color: var(--ink-3);
+  border: 1px solid var(--line-strong);
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+.feedback-button:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.feedback-button--good.active {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: rgba(4, 120, 87, 0.32);
+}
+.feedback-button--bad.active {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: rgba(185, 28, 28, 0.32);
+}
+
+/* ---------- Admin ---------- */
+.admin-stat-row {
+  grid-template-columns: repeat(3, 1fr);
+}
+.admin-metrics-card {
+  gap: 16px;
+}
+.admin-metrics-card__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+.admin-feedback-bars {
+  display: grid;
+  gap: 10px;
+}
+.admin-feedback-bars__row {
+  display: grid;
+  grid-template-columns: 72px minmax(160px, 1fr) 40px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.admin-feedback-bars__row strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.admin-feedback-bars__good { background: var(--success); }
+.admin-feedback-bars__bad { background: var(--danger); }
+.admin-feedback-bars__unrated { background: var(--line-strong); }
 
 .subhead {
   margin: 12px 0 4px;

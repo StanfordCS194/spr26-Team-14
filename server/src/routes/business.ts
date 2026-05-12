@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
+import { recommendationFeedback } from "../db/recommendation-feedback";
 import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
 
 const profileSchema = z.object({
@@ -54,6 +55,11 @@ const promptSchema = z.object({
   prompt: z.string().trim().min(8),
 });
 
+const recommendationFeedbackSchema = z.object({
+  recommendationId: z.string().trim().min(1),
+  rating: z.enum(["good", "bad"]),
+});
+
 businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
   const id = c.req.param("id");
   if (!businessProfiles.get(id)) {
@@ -74,4 +80,32 @@ businessRoutes.post("/business-profiles/:id/monitoring-prompts", async (c) => {
   }
   const body = promptSchema.parse(await c.req.json());
   return c.json(monitoringPrompts.add(id, body.prompt), 201);
+});
+
+businessRoutes.get("/business-profiles/:id/recommendation-feedback", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  return c.json({ feedback: recommendationFeedback.list(id) });
+});
+
+businessRoutes.put("/business-profiles/:id/recommendation-feedback", async (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const body = recommendationFeedbackSchema.parse(await c.req.json());
+  return c.json(recommendationFeedback.save(id, body.recommendationId, body.rating));
+});
+
+businessRoutes.get("/business-profiles/:id/admin/metrics", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const recommendationCount = Number(c.req.query("recommendationCount") ?? 0);
+  return c.json({
+    recommendationFeedback: recommendationFeedback.metrics(id, Number.isFinite(recommendationCount) ? recommendationCount : 0),
+  });
 });
