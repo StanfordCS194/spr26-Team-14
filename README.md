@@ -30,6 +30,9 @@ Connor Fogarty | Database design, production code | Easygoing | Sometimes can be
 ## Product Requirements Document (PRD)
 https://docs.google.com/document/d/1_7ihu_LTOc90rLPz_Z4Qi2hujh1mniR2B4RlztDDm_A/edit?tab=t.0#heading=h.mzf2knh2cjc1
 
+## User Testing Plan
+https://docs.google.com/document/d/1nJyBwkMN8ch1CiVC2bMPHw1x2-OVG9CUHAtRjKS6ua4/edit?tab=t.0
+
 ## Weekly Schedule
 <img src="assets/weekly_schedule.png" height="100"/>
 
