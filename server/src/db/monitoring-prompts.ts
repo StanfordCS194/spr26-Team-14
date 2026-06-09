@@ -2,11 +2,16 @@ import { db } from "./client";
 
 export type MonitoringStatus = "generating" | "ready" | "error";
 export type MentionSentiment = "positive" | "negative" | "neutral";
+export type PromptCategory = "comparison" | "recommendation" | "feature" | "pricing" | "custom";
+export type PromptCadence = "daily" | "weekly";
 
 export interface MonitoringPrompt {
   id: string;
   businessProfileId: string;
   prompt: string;
+  category: PromptCategory;
+  cadence: PromptCadence;
+  active: boolean;
   mentionSentiment: MentionSentiment;
   createdAt: string;
 }
@@ -26,6 +31,9 @@ interface PromptRow {
   id: string;
   business_profile_id: string;
   prompt: string;
+  category: PromptCategory;
+  cadence: PromptCadence;
+  active: number;
   mention_sentiment: MentionSentiment;
   created_at: string;
 }
@@ -51,6 +59,9 @@ function fromRow(row: PromptRow): MonitoringPrompt {
     id: row.id,
     businessProfileId: row.business_profile_id,
     prompt: row.prompt,
+    category: row.category,
+    cadence: row.cadence,
+    active: row.active === 1,
     mentionSentiment: row.mention_sentiment,
     createdAt: row.created_at,
   };
@@ -84,10 +95,14 @@ const getState = db.query<StateRow, [string]>(`
   WHERE business_profile_id = ?
 `);
 
-const insertPrompt = db.query<PromptRow, [string, string, string, MentionSentiment, string]>(`
-  INSERT INTO monitoring_prompts (id, business_profile_id, prompt, mention_sentiment, created_at)
-  VALUES (?, ?, ?, ?, ?)
-  RETURNING id, business_profile_id, prompt, mention_sentiment, created_at
+const insertPrompt = db.query<PromptRow, [
+  string, string, string, PromptCategory, PromptCadence, number, MentionSentiment, string,
+]>(`
+  INSERT INTO monitoring_prompts (
+    id, business_profile_id, prompt, category, cadence, active, mention_sentiment, created_at
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  RETURNING id, business_profile_id, prompt, category, cadence, active, mention_sentiment, created_at
 `);
 
 const deletePrompts = db.query<null, [string]>(`
@@ -96,10 +111,16 @@ const deletePrompts = db.query<null, [string]>(`
 `);
 
 const listPrompts = db.query<PromptRow, [string]>(`
-  SELECT id, business_profile_id, prompt, mention_sentiment, created_at
+  SELECT id, business_profile_id, prompt, category, cadence, active, mention_sentiment, created_at
   FROM monitoring_prompts
   WHERE business_profile_id = ?
   ORDER BY created_at ASC
+`);
+const updatePrompt = db.query<PromptRow, [string, PromptCategory, PromptCadence, number, string, string]>(`
+  UPDATE monitoring_prompts
+  SET prompt = ?, category = ?, cadence = ?, active = ?
+  WHERE id = ? AND business_profile_id = ?
+  RETURNING id, business_profile_id, prompt, category, cadence, active, mention_sentiment, created_at
 `);
 
 const updatePromptSentiment = db.query<null, [MentionSentiment, string]>(`
@@ -134,12 +155,49 @@ function fakeSentiment(index: number): MentionSentiment {
 }
 
 export const monitoringPrompts = {
-  add(businessProfileId: string, prompt: string) {
-    return fromRow(insertPrompt.get(crypto.randomUUID(), businessProfileId, prompt, fakeSentiment(Date.now()), new Date().toISOString())!);
+  add(
+    businessProfileId: string,
+    input: string | { prompt: string; category?: PromptCategory; cadence?: PromptCadence; active?: boolean },
+  ) {
+    const values = typeof input === "string" ? { prompt: input } : input;
+    return fromRow(insertPrompt.get(
+      crypto.randomUUID(),
+      businessProfileId,
+      values.prompt,
+      values.category ?? "custom",
+      values.cadence ?? "daily",
+      values.active === false ? 0 : 1,
+      fakeSentiment(Date.now()),
+      new Date().toISOString(),
+    )!);
   },
 
-  list(businessProfileId: string) {
-    return listPrompts.all(businessProfileId).map(fromRow);
+  list(businessProfileId: string, includeInactive = false) {
+    const prompts = listPrompts.all(businessProfileId).map(fromRow);
+    return includeInactive ? prompts : prompts.filter((prompt) => prompt.active);
+  },
+
+  findDuplicate(businessProfileId: string, value: string, excludeId?: string) {
+    const tokens = (text: string) => new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean));
+    const candidate = tokens(value);
+    return this.list(businessProfileId, true).find((prompt) => {
+      if (prompt.id === excludeId) return false;
+      const existing = tokens(prompt.prompt);
+      const intersection = [...candidate].filter((token) => existing.has(token)).length;
+      const union = new Set([...candidate, ...existing]).size;
+      return union > 0 && intersection / union >= 0.85;
+    }) ?? null;
+  },
+
+  update(
+    businessProfileId: string,
+    id: string,
+    input: { prompt: string; category: PromptCategory; cadence: PromptCadence; active: boolean },
+  ) {
+    const row = updatePrompt.get(
+      input.prompt, input.category, input.cadence, input.active ? 1 : 0, id, businessProfileId,
+    );
+    return row ? fromRow(row) : null;
   },
 
   addResult(input: {
@@ -179,7 +237,10 @@ export const monitoringPrompts = {
     db.transaction(() => {
       deletePrompts.run(businessProfileId);
       prompts.forEach((prompt, index) => {
-        insertPrompt.get(crypto.randomUUID(), businessProfileId, prompt, fakeSentiment(index), new Date().toISOString());
+        insertPrompt.get(
+          crypto.randomUUID(), businessProfileId, prompt, "custom", "daily", 1,
+          fakeSentiment(index), new Date().toISOString(),
+        );
       });
     })();
     return this.list(businessProfileId);

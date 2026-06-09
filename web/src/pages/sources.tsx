@@ -16,6 +16,9 @@ function sourceBadge(type: CitedSource["sourceType"]) {
 
 export function SourcesPage({ profile }: { profile: BusinessProfile }) {
   const [sources, setSources] = useState<CitedSource[]>([]);
+  const [provider, setProvider] = useState("");
+  const [type, setType] = useState("");
+  const [sentiment, setSentiment] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -23,12 +26,16 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
     setSources([]);
     setError("");
     setLoading(true);
-    fetch(`${API_BASE}/business-profiles/${profile.id}/sources`)
+    const params = new URLSearchParams();
+    if (provider) params.set("provider", provider);
+    if (type) params.set("sourceType", type);
+    if (sentiment) params.set("sentiment", sentiment);
+    fetch(`${API_BASE}/business-profiles/${profile.id}/sources?${params}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Could not load source attributions."))))
       .then((body: SourcesResponse) => setSources(body.sources))
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load source attributions."))
       .finally(() => setLoading(false));
-  }, [profile.id]);
+  }, [profile.id, provider, type, sentiment]);
 
   if (loading) {
     return (
@@ -39,7 +46,7 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
     );
   }
 
-  if (sources.length === 0) {
+  if (sources.length === 0 && !provider && !type && !sentiment) {
     return (
       <article className="panel wide-panel">
         <p className="muted">Sources</p>
@@ -71,18 +78,42 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
       </p>
       {error && <p className="error">{error}</p>}
 
-      <div className="sources-stat-row">
-        <div className="sources-stat">
-          <div className="sources-stat__label">Citations / week</div>
-          <div className="sources-stat__value">{totalCitations}</div>
+      <div className="inline-form">
+        <select aria-label="Filter sources by provider" value={provider} onChange={(event) => setProvider(event.target.value)}>
+          <option value="">All providers</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Claude</option>
+          <option value="gemini">Gemini</option>
+        </select>
+        <select aria-label="Filter sources by type" value={type} onChange={(event) => setType(event.target.value)}>
+          <option value="">All source types</option>
+          <option value="reddit">Reddit</option>
+          <option value="publication">News</option>
+          <option value="review">Reviews</option>
+          <option value="video">Video</option>
+          <option value="wiki">Wiki</option>
+          <option value="other">Other</option>
+        </select>
+        <select aria-label="Filter sources by sentiment" value={sentiment} onChange={(event) => setSentiment(event.target.value)}>
+          <option value="">All sentiment</option>
+          <option value="positive">Positive</option>
+          <option value="neutral">Neutral</option>
+          <option value="negative">Negative</option>
+        </select>
+      </div>
+
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat__label">Citations / week</div>
+          <div className="stat__value">{totalCitations}</div>
         </div>
-        <div className="sources-stat">
-          <div className="sources-stat__label">Reddit</div>
-          <div className="sources-stat__value">{reddit}</div>
+        <div className="stat">
+          <div className="stat__label">Reddit</div>
+          <div className="stat__value">{reddit}</div>
         </div>
-        <div className="sources-stat">
-          <div className="sources-stat__label">News & reviews</div>
-          <div className="sources-stat__value">{newsAndReviews}</div>
+        <div className="stat">
+          <div className="stat__label">News & reviews</div>
+          <div className="stat__value">{newsAndReviews}</div>
         </div>
       </div>
 
@@ -100,8 +131,9 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
           {sources.map((s) => (
             <tr key={s.id}>
               <td>
-                <div className="sources-row__title">{s.title}</div>
+                <div className="sources-row__title"><a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></div>
                 <div className="sources-row__domain">{s.domain}</div>
+                <div className="muted">{s.providers.join(", ")} · {s.relatedRecommendationIds.length} related actions</div>
               </td>
               <td><span className="source-badge">{sourceBadge(s.sourceType)}</span></td>
               <td>{s.brandsMentioned.join(", ")}</td>
