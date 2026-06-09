@@ -211,8 +211,9 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
     )
   }
 
-  const highImpact = recs.filter((r) => r.impact === "high").length
-  const quickWins = recs.filter(
+  const activeRecs = recs.filter((r) => r.status !== "completed" && r.status !== "dismissed")
+  const highImpact = activeRecs.filter((r) => r.impact === "high").length
+  const quickWins = activeRecs.filter(
     (r) => r.effort === "low" && (r.impact === "high" || r.impact === "medium"),
   ).length
 
@@ -222,7 +223,7 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
         <h2 className="block__title">At a glance</h2>
         <p className="muted">Initiative counts for {profile.name}, ranked like the benchmarking tabs.</p>
         <div className="stat-row">
-          <SummaryStat label="Active initiatives" value={recs.length} />
+          <SummaryStat label="Active initiatives" value={activeRecs.length} />
           <SummaryStat label="High impact" value={highImpact} />
           <SummaryStat label="Quick wins" value={quickWins} />
         </div>
