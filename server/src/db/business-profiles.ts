@@ -50,6 +50,10 @@ interface CompetitorRow {
   name: string;
 }
 
+interface CompetitorUpdatedRow {
+  updated_at: string | null;
+}
+
 const deleteCompetitors = db.query<null, [string]>(`
   DELETE FROM business_competitors
   WHERE business_profile_id = ?
@@ -65,6 +69,11 @@ const listCompetitors = db.query<CompetitorRow, [string]>(`
   FROM business_competitors
   WHERE business_profile_id = ?
   ORDER BY position
+`);
+const getCompetitorUpdatedAt = db.query<CompetitorUpdatedRow, [string]>(`
+  SELECT MAX(updated_at) AS updated_at
+  FROM business_competitors
+  WHERE business_profile_id = ?
 `);
 
 export const businessProfiles = {
@@ -84,6 +93,10 @@ export const businessProfiles = {
 
   competitors(id: string) {
     return listCompetitors.all(id).map((row) => row.name);
+  },
+
+  competitorUpdatedAt(id: string) {
+    return getCompetitorUpdatedAt.get(id)?.updated_at ?? null;
   },
 
   saveCompetitors(id: string, names: string[]) {

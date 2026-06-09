@@ -1,18 +1,29 @@
 import { useEffect, useState } from "react";
 import "./app.css";
 import { API_BASE } from "./api";
+import { AccuracyPage } from "./pages/accuracy";
 import { AdminPage } from "./pages/admin";
 import { CompetitivePage } from "./pages/competitive";
 import { MonitoringPage } from "./pages/monitoring";
 import { RecommendationsPage } from "./pages/recommendations";
 import { SourcesPage } from "./pages/sources";
-import { DEMO_BRAND_NAME } from "./seed/demo-content";
-import type { BusinessProfile } from "./types";
+import type { BusinessProfile, BusinessProfileInput } from "./types";
 import logoUrl from "../../assets/logo.svg";
 
 export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfileInput) => void }) {
-  const [form, setForm] = useState({ name: "", website: "", description: "" });
-  const canSubmit = Object.values(form).every((value) => value.trim());
+  const [form, setForm] = useState({
+    name: "",
+    website: "",
+    description: "",
+    competitors: "",
+  });
+  const competitorNames = form.competitors.split("\n").map((value) => value.trim()).filter(Boolean);
+  const canSubmit = Boolean(
+    form.name.trim() &&
+    form.website.trim() &&
+    form.description.trim() &&
+    competitorNames.length === 5
+  );
 
   return (
     <form
@@ -20,7 +31,12 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
-          onCreate(form);
+          onCreate({
+            name: form.name,
+            website: form.website,
+            description: form.description,
+            competitorNames,
+          });
         }
       }}
     >
@@ -49,6 +65,14 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
           rows={4}
         />
       </label>
+      <label>
+        Top 5 competitors (one per line)
+        <textarea
+          value={form.competitors}
+          onChange={(event) => setForm({ ...form, competitors: event.target.value })}
+          rows={5}
+        />
+      </label>
       <button type="submit" disabled={!canSubmit}>
         Create profile
       </button>
@@ -56,10 +80,9 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
   );
 }
 
-type BusinessProfileInput = Pick<BusinessProfile, "name" | "website" | "description">;
-
 const navItems = [
   { key: "monitoring", label: "Monitoring", description: "AI mention frequency, sentiment, and trends." },
+  { key: "accuracy", label: "Citation Grounding", description: "Claim-level source coverage and unsupported-claim alerts." },
   { key: "benchmarking", label: "Benchmarking", description: "Compare your brand against competitors in AI answers." },
   { key: "recommendations", label: "Recommendations", description: "Prioritized fix-it ideas from detected gaps." },
   { key: "sources", label: "Sources", description: "Reddit, publications, reviews, and other sources AI cites." },
@@ -72,6 +95,7 @@ export function App() {
   const [profiles, setProfiles] = useState<BusinessProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState("");
   const [activePage, setActivePage] = useState<PageKey>("benchmarking");
+  const [addingProfile, setAddingProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -81,7 +105,7 @@ export function App() {
       .then((body: { profiles: BusinessProfile[] }) => {
         setProfiles(body.profiles);
         // Prefer the seeded demo brand if it exists, otherwise the first profile.
-        const seeded = body.profiles.find((p) => p.name === DEMO_BRAND_NAME);
+        const seeded = body.profiles.find((p) => p.name === "Netflix");
         setActiveProfileId((seeded ?? body.profiles[0])?.id ?? "");
       })
       .catch(() => setError("Could not load business profiles."))
@@ -102,13 +126,15 @@ export function App() {
     const profile = (await res.json()) as BusinessProfile;
     setProfiles((current) => [profile, ...current]);
     setActiveProfileId(profile.id);
+    setActivePage("monitoring");
+    setAddingProfile(false);
   }
 
   if (loading) {
     return <main className="page center-page">Loading…</main>;
   }
 
-  if (!profiles.length) {
+  if (addingProfile || !profiles.length) {
     return (
       <main className="page center-page">
         <OnboardingForm onCreate={createProfile} />
@@ -122,7 +148,7 @@ export function App() {
       activePage={activePage}
       activeProfileId={activeProfileId}
       error={error}
-      onAddProfile={() => setProfiles([])}
+      onAddProfile={() => setAddingProfile(true)}
       onSelectPage={setActivePage}
       onSelectProfile={setActiveProfileId}
       profiles={profiles}
@@ -205,17 +231,21 @@ export function ProfileDashboard({
           </div>
         </header>
 
+        <section hidden={activePage !== "benchmarking"}>
+          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+        </section>
+
         {activePage === "monitoring" ? (
           <MonitoringPage profile={profile} />
-        ) : activePage === "benchmarking" ? (
-          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+        ) : activePage === "accuracy" ? (
+          <AccuracyPage profile={profile} />
         ) : activePage === "recommendations" ? (
           <RecommendationsPage profile={profile} />
         ) : activePage === "sources" ? (
           <SourcesPage profile={profile} />
-        ) : (
+        ) : activePage === "admin" ? (
           <AdminPage profile={profile} />
-        )}
+        ) : null}
 
         {error && <p className="error">{error}</p>}
       </section>
