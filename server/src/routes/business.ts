@@ -3,6 +3,7 @@ import { z } from "zod";
 import { citationGrounding } from "../db/citation-grounding";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
+import { monitoringRuns } from "../db/monitoring-runs";
 import { profileRecommendations } from "../db/profile-recommendations";
 import { recommendationFeedback } from "../db/recommendation-feedback";
 import { buildMonitoringBenchmark } from "../features/competitive/monitoring-benchmark";
@@ -15,6 +16,7 @@ import {
   runMonitoring,
 } from "../features/monitoring/run-monitoring";
 import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
+import { recordCitationGrounding } from "../features/accuracy/analyze-citations";
 import { isLLMProviderConfigured } from "../lib/llm-providers";
 
 const profileSchema = z.object({
@@ -172,14 +174,14 @@ businessRoutes.get("/business-profiles/:id/accuracy-alerts", (c) => {
   if (!businessProfiles.get(id)) {
     return c.json({ error: "Business profile not found." }, 404);
   }
+  const checkedIds = citationGrounding.checkedAttemptIds(id);
+  for (const attempt of monitoringRuns.attempts(id)) {
+    if (!checkedIds.has(attempt.id)) recordCitationGrounding(attempt);
+  }
   return c.json({
     alerts: citationGrounding.alerts(id),
     summary: citationGrounding.summary(id),
-    delivery: {
-      inApp: true,
-      emailConfigured: Boolean(process.env.ACCURACY_ALERT_EMAIL_WEBHOOK),
-      slackConfigured: Boolean(process.env.ACCURACY_ALERT_SLACK_WEBHOOK),
-    },
+    providers: citationGrounding.providerSummary(id),
   });
 });
 

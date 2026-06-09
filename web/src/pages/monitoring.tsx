@@ -16,8 +16,19 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
   const padBottom = 32;
   const chartHeight = height - padTop - padBottom;
   const yForScore = (score: number) => padTop + ((1 - score) / 2) * chartHeight;
-  const points = history.map((item, index) => {
-    const x = padX + (index * (width - padX * 2)) / Math.max(history.length - 1, 1);
+  const dailyHistory = Object.values(history.reduce<Record<string, { t: string; total: number; count: number }>>(
+    (days, item) => {
+      const date = new Date(item.t).toLocaleDateString();
+      const current = days[date] ?? { t: item.t, total: 0, count: 0 };
+      days[date] = { t: item.t, total: current.total + item.score, count: current.count + 1 };
+      return days;
+    },
+    {},
+  )).map((day) => ({ t: day.t, score: day.total / day.count }));
+  const points = dailyHistory.map((item, index) => {
+    const x = dailyHistory.length === 1
+      ? width / 2
+      : padX + (index * (width - padX * 2)) / (dailyHistory.length - 1);
     const y = yForScore(item.score);
     return {
       date: new Date(item.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
@@ -36,7 +47,7 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
       <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
         {points.map((point) => (
           <line
-            key={`grid-${point.date}`}
+            key={`grid-${point.date}-${point.x}`}
             className="grid-line"
             x1={point.x}
             x2={point.x}
@@ -60,7 +71,7 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
           const positive = (point.score + next.score) / 2 >= 0;
           return (
             <line
-              key={point.date}
+              key={`${point.date}-${point.x}`}
               className={positive ? "trend-line trend-positive" : "trend-line trend-negative"}
               x1={point.x}
               x2={next.x}
@@ -70,7 +81,7 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
           );
         })}
         {points.map((point) => (
-          <g key={point.date}>
+          <g key={`${point.date}-${point.x}`}>
             <circle className={point.score >= 0 ? "trend-dot trend-dot-positive" : "trend-dot trend-dot-negative"} cx={point.x} cy={point.y} r="5" />
             <text className="chart-label" x={point.x} y={height - 4} textAnchor="middle">
               {point.date}
@@ -196,7 +207,7 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
           <div className="stat__value">{Math.round(data.summary.mentionFrequency * 100)}%</div>
         </div>
         <div className="stat">
-          <div className="stat__label">Recommendations</div>
+          <div className="stat__label">Recommended responses</div>
           <div className="stat__value">{data.summary.recommendedResponses}</div>
         </div>
       </div>
