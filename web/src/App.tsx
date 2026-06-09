@@ -6,7 +6,6 @@ import { CompetitivePage } from "./pages/competitive";
 import { MonitoringPage } from "./pages/monitoring";
 import { RecommendationsPage } from "./pages/recommendations";
 import { SourcesPage } from "./pages/sources";
-import { DEMO_BRAND_NAME } from "./seed/demo-content";
 import type { BusinessProfile } from "./types";
 import logoUrl from "../../assets/logo.svg";
 
@@ -81,7 +80,7 @@ export function App() {
       .then((body: { profiles: BusinessProfile[] }) => {
         setProfiles(body.profiles);
         // Prefer the seeded demo brand if it exists, otherwise the first profile.
-        const seeded = body.profiles.find((p) => p.name === DEMO_BRAND_NAME);
+        const seeded = body.profiles.find((p) => p.name === "Netflix");
         setActiveProfileId((seeded ?? body.profiles[0])?.id ?? "");
       })
       .catch(() => setError("Could not load business profiles."))
@@ -205,17 +204,19 @@ export function ProfileDashboard({
           </div>
         </header>
 
+        <section hidden={activePage !== "benchmarking"}>
+          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+        </section>
+
         {activePage === "monitoring" ? (
           <MonitoringPage profile={profile} />
-        ) : activePage === "benchmarking" ? (
-          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
         ) : activePage === "recommendations" ? (
           <RecommendationsPage profile={profile} />
         ) : activePage === "sources" ? (
           <SourcesPage profile={profile} />
-        ) : (
+        ) : activePage === "admin" ? (
           <AdminPage profile={profile} />
-        )}
+        ) : null}
 
         {error && <p className="error">{error}</p>}
       </section>

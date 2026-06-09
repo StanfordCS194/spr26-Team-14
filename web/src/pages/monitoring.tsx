@@ -1,25 +1,14 @@
 import { useEffect, useState } from "react";
-import type { BusinessProfile, MonitoringResponse } from "../types";
-
-const API_BASE =
-  import.meta.env.DEV === true ? "/api" : (import.meta.env.VITE_API_URL ?? "http://localhost:3000");
+import { API_BASE } from "../api";
+import type { BusinessProfile, MonitoringHistoryPoint, MonitoringResponse } from "../types";
 
 function sentimentLabel(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-const sentimentHistory = [-0.18, -0.08, 0.04, 0.12, 0.26, 0.18, -0.06].map((score, index) => {
-  const date = new Date();
-  date.setDate(date.getDate() - (6 - index));
-  return {
-    date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-    score,
-  };
-});
-
 const yTicks = [-1, -0.5, 0, 0.5, 1];
 
-export function SentimentTrend() {
+export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] }) {
   const width = 700;
   const height = 220;
   const padX = 48;
@@ -27,11 +16,15 @@ export function SentimentTrend() {
   const padBottom = 32;
   const chartHeight = height - padTop - padBottom;
   const yForScore = (score: number) => padTop + ((1 - score) / 2) * chartHeight;
-  const midY = yForScore(0);
-  const points = sentimentHistory.map((item, index) => {
-    const x = padX + (index * (width - padX * 2)) / (sentimentHistory.length - 1);
+  const points = history.map((item, index) => {
+    const x = padX + (index * (width - padX * 2)) / Math.max(history.length - 1, 1);
     const y = yForScore(item.score);
-    return { ...item, x, y };
+    return {
+      date: new Date(item.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      score: item.score,
+      x,
+      y,
+    };
   });
 
   return (
@@ -84,6 +77,11 @@ export function SentimentTrend() {
             </text>
           </g>
         ))}
+        {points.length === 0 && (
+          <text className="chart-label" x={width / 2} y={height / 2} textAnchor="middle">
+            Run monitoring to build a live sentiment trend.
+          </text>
+        )}
       </svg>
     </section>
   );
@@ -93,6 +91,7 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
   const [data, setData] = useState<MonitoringResponse | null>(null);
   const [newPrompt, setNewPrompt] = useState("");
   const [error, setError] = useState("");
+  const [running, setRunning] = useState(false);
 
   async function load() {
     const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring`);
@@ -136,6 +135,27 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
     await load();
   }
 
+  async function runLiveMonitoring() {
+    setRunning(true);
+    setError("");
+    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring/runs`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "Could not run live monitoring.");
+      setRunning(false);
+      return;
+    }
+    try {
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load monitoring prompts.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
   if (!data || (data.status === "generating" && data.prompts.length === 0)) {
     return (
       <article className="panel">
@@ -151,7 +171,12 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
       <p className="muted">Monitoring</p>
       <h2>{profile.name}</h2>
       <p>Track the prompts where this business should appear in chatbot answers.</p>
-      <SentimentTrend />
+      <SentimentTrend history={data.history} />
+      <div className="inline-form">
+        <button type="button" onClick={runLiveMonitoring} disabled={running || data.prompts.length === 0}>
+          {running ? "Running monitoring…" : "Run live monitoring"}
+        </button>
+      </div>
 
       <table>
         <thead>

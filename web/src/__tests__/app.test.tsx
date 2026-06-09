@@ -4,7 +4,6 @@ import { App, OnboardingForm, ProfileDashboard } from "../App";
 import { AdminPage } from "../pages/admin";
 import { MonitoringPage, SentimentTrend } from "../pages/monitoring";
 import { RecommendationsPage } from "../pages/recommendations";
-import { DEMO_BRAND_NAME } from "../seed/demo-content";
 
 describe("app onboarding", () => {
   test("renders business profile fields", () => {
@@ -59,25 +58,23 @@ describe("app onboarding", () => {
   });
 
   test("renders monitoring sentiment chart after load", () => {
-    const html = renderToStaticMarkup(<SentimentTrend />);
+    const html = renderToStaticMarkup(<SentimentTrend history={[{ t: new Date().toISOString(), score: 0.3 }]} />);
     expect(html.includes("7 day sentiment trend")).toBeTrue();
   });
 
-  test("renders recommendation feedback controls", () => {
+  test("renders recommendation loading state", () => {
     const html = renderToStaticMarkup(
       <RecommendationsPage
         profile={{
           id: "profile-1",
-          name: DEMO_BRAND_NAME,
+          name: "Netflix",
           website: "https://netflix.test",
           description: "Streaming entertainment.",
           createdAt: new Date().toISOString(),
         }}
       />,
     );
-    expect(html.includes("Was this recommendation useful?")).toBeTrue();
-    expect(html.includes("Good")).toBeTrue();
-    expect(html.includes("Bad")).toBeTrue();
+    expect(html.includes("Loading recommendations")).toBeTrue();
   });
 
   test("renders admin feedback metrics section", () => {
@@ -85,7 +82,7 @@ describe("app onboarding", () => {
       <AdminPage
         profile={{
           id: "profile-1",
-          name: DEMO_BRAND_NAME,
+          name: "Netflix",
           website: "https://netflix.test",
           description: "Streaming entertainment.",
           createdAt: new Date().toISOString(),

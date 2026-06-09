@@ -18,6 +18,12 @@ export interface MonitoringResponse {
   status: "generating" | "ready" | "error";
   error: string | null;
   prompts: MonitoringPrompt[];
+  history: MonitoringHistoryPoint[];
+}
+
+export interface MonitoringHistoryPoint {
+  t: string;
+  score: number;
 }
 
 export type RecommendationRating = "good" | "bad";
@@ -38,6 +44,48 @@ export interface RecommendationFeedbackMetrics {
 
 export interface AdminMetricsResponse {
   recommendationFeedback: RecommendationFeedbackMetrics;
+}
+
+export type RecommendationCategory = "content" | "earned_media" | "technical";
+export type ImpactLevel = "high" | "medium" | "low";
+export type EffortLevel = "low" | "medium" | "high";
+
+export interface Recommendation {
+  id: string;
+  brandId: string;
+  sourceGapEventId: string;
+  title: string;
+  category: RecommendationCategory;
+  impact: ImpactLevel;
+  effort: EffortLevel;
+  evidence: string;
+  action: string;
+  createdAt: string;
+}
+
+export interface RecommendationsResponse {
+  recommendations: Recommendation[];
+  llmConfigured: boolean;
+}
+
+export type SourceType = "reddit" | "publication" | "review" | "video" | "wiki" | "other";
+export type CitedSentiment = "positive" | "neutral" | "negative";
+
+export interface CitedSource {
+  id: string;
+  brandId: string;
+  domain: string;
+  title: string;
+  citationsThisWeek: number;
+  brandsMentioned: string[];
+  sentiment: CitedSentiment;
+  sourceType: SourceType;
+  createdAt: string;
+}
+
+export interface SourcesResponse {
+  sources: CitedSource[];
+  llmConfigured: boolean;
 }
 
 export interface OverviewRow {

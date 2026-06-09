@@ -1,9 +1,6 @@
-import {
-  DEMO_BRAND_NAME,
-  NETFLIX_SOURCES,
-  type CitedSource,
-} from "../seed/demo-content";
-import type { BusinessProfile } from "../types";
+import { useEffect, useState } from "react";
+import { API_BASE } from "../api";
+import type { BusinessProfile, CitedSource, SourcesResponse } from "../types";
 
 function sourceBadge(type: CitedSource["sourceType"]) {
   const map: Record<CitedSource["sourceType"], string> = {
@@ -12,21 +9,44 @@ function sourceBadge(type: CitedSource["sourceType"]) {
     review: "Review",
     video: "YouTube",
     wiki: "Wiki",
+    other: "Other",
   };
   return map[type];
 }
 
 export function SourcesPage({ profile }: { profile: BusinessProfile }) {
-  const isSeededBrand = profile.name === DEMO_BRAND_NAME;
-  const sources = isSeededBrand ? NETFLIX_SOURCES : [];
+  const [sources, setSources] = useState<CitedSource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setSources([]);
+    setError("");
+    setLoading(true);
+    fetch(`${API_BASE}/business-profiles/${profile.id}/sources`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Could not load source attributions."))))
+      .then((body: SourcesResponse) => setSources(body.sources))
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load source attributions."))
+      .finally(() => setLoading(false));
+  }, [profile.id]);
+
+  if (loading) {
+    return (
+      <article className="panel wide-panel">
+        <p className="muted">Sources</p>
+        <h2>Loading source attributions…</h2>
+      </article>
+    );
+  }
 
   if (sources.length === 0) {
     return (
       <article className="panel wide-panel">
         <p className="muted">Sources</p>
         <h2>No source attributions for {profile.name} yet</h2>
+        {error && <p className="error">{error}</p>}
         <p>
-          Run a benchmark with citation tracking enabled to surface the third-party sources AI assistants
+          Run a live benchmark with citation tracking enabled to surface the third-party sources AI assistants
           cite when answering about this brand.
         </p>
       </article>
@@ -49,6 +69,7 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
         The third-party sources frontier models reach for when answering questions about this brand.
         Counts are citations across the last 7 days of monitoring runs.
       </p>
+      {error && <p className="error">{error}</p>}
 
       <div className="sources-stat-row">
         <div className="sources-stat">
