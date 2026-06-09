@@ -44,5 +44,6 @@ app.route("/", llmStatusRoutes);
 
 export default {
   port: Number(process.env.PORT ?? 3000),
+  idleTimeout: Number(process.env.PERCEPTION_SERVER_IDLE_TIMEOUT ?? 255),
   fetch: app.fetch,
 };

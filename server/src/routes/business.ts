@@ -18,8 +18,9 @@ const profileSchema = z.object({
 
 export const businessRoutes = new Hono();
 
-function brandIdForProfileName(name: string) {
-  return Array.from(store.brands.values()).find((brand) => brand.name === name)?.id ?? null;
+function brandIdForProfile(profileId: string) {
+  const brandId = store.businessProfileBrandIds.get(profileId);
+  return brandId && store.brands.has(brandId) ? brandId : null;
 }
 
 function liveProviderUnavailable() {
@@ -134,7 +135,7 @@ businessRoutes.get("/business-profiles/:id/recommendations", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const brandId = brandIdForProfileName(profile.name);
+  const brandId = brandIdForProfile(profile.id);
   const recommendations = brandId ? recommendationsForBrand(brandId) : [];
   return c.json({
     recommendations,
@@ -147,7 +148,7 @@ businessRoutes.get("/business-profiles/:id/sources", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const brandId = brandIdForProfileName(profile.name);
+  const brandId = brandIdForProfile(profile.id);
   const sources = brandId ? sourcesForBrand(brandId) : [];
   return c.json({
     sources,
@@ -170,7 +171,7 @@ businessRoutes.get("/business-profiles/:id/admin/metrics", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const brandId = brandIdForProfileName(profile.name);
+  const brandId = brandIdForProfile(profile.id);
   const recommendationCount = brandId ? recommendationsForBrand(brandId).length : 0;
   return c.json({
     recommendationFeedback: recommendationFeedback.metrics(id, recommendationCount),

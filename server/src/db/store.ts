@@ -44,6 +44,7 @@ const seededPromptSet: PromptSet = {
 
 export const store = {
   brands: new Map<string, Brand>(),
+  businessProfileBrandIds: new Map<string, string>(),
   competitorSets: new Map<string, CompetitorSet>(),
   promptSets: new Map<string, PromptSet>([[seededPromptSet.id, seededPromptSet]]),
   promptRuns: new Map<string, PromptRun>(),
@@ -75,6 +76,7 @@ export const getNowIso = nowIso;
 
 export function resetStore() {
   store.brands.clear();
+  store.businessProfileBrandIds.clear();
   store.competitorSets.clear();
   store.promptRuns.clear();
   store.answers.clear();

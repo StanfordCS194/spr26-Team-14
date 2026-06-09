@@ -75,6 +75,7 @@ test("saves recommendation feedback and reports admin metrics", async () => {
   });
   const brand = { id: crypto.randomUUID(), name: profile.name };
   store.brands.set(brand.id, brand);
+  store.businessProfileBrandIds.set(profile.id, brand.id);
   store.recommendations.push({
     id: "rec-1",
     brandId: brand.id,
@@ -126,6 +127,7 @@ test("returns live recommendations and source attributions for matching brand", 
   });
   const brand = { id: crypto.randomUUID(), name: profile.name };
   store.brands.set(brand.id, brand);
+  store.businessProfileBrandIds.set(profile.id, brand.id);
   store.recommendations.push({
     id: "rec-live",
     brandId: brand.id,
@@ -157,6 +159,94 @@ test("returns live recommendations and source attributions for matching brand", 
   const sourceRes = await app.request(`/business-profiles/${profile.id}/sources`);
   expect(sourceRes.status).toBe(200);
   expect((await sourceRes.json()).sources[0].domain).toBe("example.com");
+});
+
+test("keeps recommendations and sources isolated for duplicate profile names", async () => {
+  const sharedName = `Duplicate ${crypto.randomUUID()}`;
+  const firstProfile = businessProfiles.create({
+    name: sharedName,
+    website: "https://first.test",
+    description: "First duplicate-name test profile.",
+  });
+  const secondProfile = businessProfiles.create({
+    name: sharedName,
+    website: "https://second.test",
+    description: "Second duplicate-name test profile.",
+  });
+  const firstBrand = { id: crypto.randomUUID(), name: sharedName };
+  const secondBrand = { id: crypto.randomUUID(), name: sharedName };
+  store.brands.set(firstBrand.id, firstBrand);
+  store.brands.set(secondBrand.id, secondBrand);
+  store.businessProfileBrandIds.set(firstProfile.id, firstBrand.id);
+  store.businessProfileBrandIds.set(secondProfile.id, secondBrand.id);
+  store.recommendations.push(
+    {
+      id: "rec-first-duplicate",
+      brandId: firstBrand.id,
+      sourceGapEventId: crypto.randomUUID(),
+      title: "First profile recommendation",
+      category: "content",
+      impact: "high",
+      effort: "low",
+      evidence: "First profile evidence.",
+      action: "Act on first profile.",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "rec-second-duplicate",
+      brandId: secondBrand.id,
+      sourceGapEventId: crypto.randomUUID(),
+      title: "Second profile recommendation",
+      category: "content",
+      impact: "high",
+      effort: "low",
+      evidence: "Second profile evidence.",
+      action: "Act on second profile.",
+      createdAt: new Date().toISOString(),
+    },
+  );
+  store.citedSources.push(
+    {
+      id: "src-first-duplicate",
+      brandId: firstBrand.id,
+      domain: "first.example",
+      title: "First duplicate source",
+      citationsThisWeek: 2,
+      brandsMentioned: [sharedName],
+      sentiment: "neutral",
+      sourceType: "publication",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "src-second-duplicate",
+      brandId: secondBrand.id,
+      domain: "second.example",
+      title: "Second duplicate source",
+      citationsThisWeek: 2,
+      brandsMentioned: [sharedName],
+      sentiment: "neutral",
+      sourceType: "publication",
+      createdAt: new Date().toISOString(),
+    },
+  );
+
+  const firstRecommendationsRes = await app.request(`/business-profiles/${firstProfile.id}/recommendations`);
+  const secondRecommendationsRes = await app.request(`/business-profiles/${secondProfile.id}/recommendations`);
+  expect((await firstRecommendationsRes.json()).recommendations.map((rec: { id: string }) => rec.id)).toContain(
+    "rec-first-duplicate",
+  );
+  expect((await secondRecommendationsRes.json()).recommendations.map((rec: { id: string }) => rec.id)).toContain(
+    "rec-second-duplicate",
+  );
+
+  const firstSourcesRes = await app.request(`/business-profiles/${firstProfile.id}/sources`);
+  const secondSourcesRes = await app.request(`/business-profiles/${secondProfile.id}/sources`);
+  expect((await firstSourcesRes.json()).sources.map((source: { id: string }) => source.id)).toEqual([
+    "src-first-duplicate",
+  ]);
+  expect((await secondSourcesRes.json()).sources.map((source: { id: string }) => source.id)).toEqual([
+    "src-second-duplicate",
+  ]);
 });
 
 test("runs monitoring and returns sentiment history", async () => {

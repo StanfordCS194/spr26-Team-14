@@ -138,19 +138,18 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
   async function runLiveMonitoring() {
     setRunning(true);
     setError("");
-    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring/runs`, {
-      method: "POST",
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.error ?? "Could not run live monitoring.");
-      setRunning(false);
-      return;
-    }
     try {
+      const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring/runs`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Could not run live monitoring.");
+        return;
+      }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load monitoring prompts.");
+      setError(err instanceof Error ? err.message : "Could not run live monitoring.");
     } finally {
       setRunning(false);
     }

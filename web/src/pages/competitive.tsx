@@ -222,7 +222,7 @@ export function CompetitivePage({
       const setRes = await fetch(`${API_BASE}/competitive-sets`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify({ ...input, businessProfileId }),
       });
       if (!setRes.ok) {
         throw new Error(`Could not create competitive set: ${setRes.status}`);

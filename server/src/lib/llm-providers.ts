@@ -113,16 +113,22 @@ const providers: Record<LLMProviderName, LLMProvider> = {
       }
 
       input.onStarted?.();
-      const response = await openAIClient.responses.parse({
-        model: input.model ?? "gpt-4.1-mini",
-        input: input.messages ?? [{ role: "user", content: input.prompt }],
-        text: {
-          format: zodTextFormat(input.schema, input.schemaName),
-        },
-        tools: input.useSearch ? [{ type: "web_search" }] : undefined,
-      } as Parameters<typeof openAIClient.responses.parse>[0]);
-      input.onCompleted?.();
-      return input.schema.parse(response.output_parsed);
+      try {
+        const response = await openAIClient.responses.parse({
+          model: input.model ?? "gpt-4.1-mini",
+          max_output_tokens: input.maxOutputTokens,
+          input: input.messages ?? [{ role: "user", content: input.prompt }],
+          text: {
+            format: zodTextFormat(input.schema, input.schemaName),
+          },
+          tools: input.useSearch ? [{ type: "web_search" }] : undefined,
+        } as Parameters<typeof openAIClient.responses.parse>[0]);
+        input.onCompleted?.();
+        return input.schema.parse(response.output_parsed);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown structured LLM error.";
+        throw new Error(`Structured LLM call failed for ${input.schemaName}: ${message}`);
+      }
     },
   },
 };
