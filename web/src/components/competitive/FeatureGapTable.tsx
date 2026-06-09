@@ -1,4 +1,6 @@
 import type { GapEvent, OverviewRow } from "../../types";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Props {
   rows: OverviewRow[];
@@ -13,32 +15,32 @@ export function FeatureGapTable({ rows, gaps, brandLabels, accountBrandName = "Y
 
   return (
     <div className="feature-block">
-      <table className="feature-table">
-        <thead>
-          <tr>
-            <th align="left" style={{ width: "30%" }}>Brand</th>
-            <th align="left">Top features</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[30%]">Brand</TableHead>
+            <TableHead>Top features</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row) => (
-            <tr key={row.brandId}>
-              <td><strong>{label(row.brandId)}</strong></td>
-              <td>
+            <TableRow key={row.brandId}>
+              <TableCell><strong>{label(row.brandId)}</strong></TableCell>
+              <TableCell>
                 {row.topFeatures.length === 0 ? (
                   <span className="muted" style={{ fontStyle: "italic" }}>No feature signal yet</span>
                 ) : (
-                  <span className="chip-row">
+                  <span className="flex flex-wrap gap-1.5">
                     {row.topFeatures.map((feature) => (
-                      <span className="chip" key={feature}>{feature}</span>
+                      <Badge variant="secondary" key={feature}>{feature}</Badge>
                     ))}
                   </span>
                 )}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       {praiseGaps.length > 0 && (
         <>

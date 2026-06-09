@@ -1,4 +1,7 @@
 import type { OverviewRow } from "../../types";
+import type { CSSProperties } from "react";
+import { Progress } from "@/components/ui/progress";
+import { Section } from "@/components/dashboard";
 
 const BRAND_VARS = [
   "var(--brand-1)",
@@ -21,26 +24,21 @@ export function ShareOfVoiceChart({
   const max = Math.max(0.001, ...sorted.map((row) => row.shareOfVoice));
 
   return (
-    <section className="card">
-      <h3>Share of voice</h3>
-      <p className="muted">Comparative narrative weight across all 20 perception prompts.</p>
-      <div className="metric-list">
+    <Section title="Share of voice" description="Comparative narrative weight across all 20 perception prompts.">
+      <div className="grid gap-3">
         {sorted.map((row, idx) => (
-          <div className="metric-row" key={row.brandId}>
-            <span className="metric-row__label">{label(row.brandId)}</span>
-            <span className="metric-row__bar">
-              <span
-                className="metric-row__fill"
-                style={{
-                  width: `${Math.max((row.shareOfVoice / max) * 100, 4)}%`,
-                  background: BRAND_VARS[idx % BRAND_VARS.length],
-                }}
-              />
-            </span>
-            <span className="metric-row__num">{(row.shareOfVoice * 100).toFixed(1)}%</span>
+          <div className="grid gap-1.5" key={row.brandId}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-medium">{label(row.brandId)}</span>
+              <span className="tabular-nums text-muted-foreground">{(row.shareOfVoice * 100).toFixed(1)}%</span>
+            </div>
+            <Progress
+              value={Math.max((row.shareOfVoice / max) * 100, 4)}
+              style={{ "--primary": BRAND_VARS[idx % BRAND_VARS.length] } as CSSProperties}
+            />
           </div>
         ))}
       </div>
-    </section>
+    </Section>
   );
 }

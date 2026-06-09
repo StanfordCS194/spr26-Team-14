@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
+import { Progress } from "@/components/ui/progress";
+import { Section, Stat, StatRow } from "@/components/dashboard";
 import type { AdminMetricsResponse, BusinessProfile, RecommendationFeedbackMetrics } from "../types";
 
 const emptyMetrics: RecommendationFeedbackMetrics = {
@@ -8,15 +10,6 @@ const emptyMetrics: RecommendationFeedbackMetrics = {
   bad: 0,
   unrated: 0,
 };
-
-type AdminStatProps = { label: string; value: number | string };
-
-const AdminStat = ({ label, value }: AdminStatProps) => (
-  <div className="stat">
-    <div className="stat__label">{label}</div>
-    <div className="stat__value">{value}</div>
-  </div>
-);
 
 export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
   const [metrics, setMetrics] = useState<RecommendationFeedbackMetrics>(emptyMetrics);
@@ -38,68 +31,48 @@ export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
   const goodRate = metrics.total === 0 ? "0%" : `${Math.round((metrics.good / metrics.total) * 100)}%`;
 
   return (
-    <>
-      <div className="block">
-        <h2 className="block__title">Feedback metrics</h2>
-        <p className="muted">
-          Admin metrics start with recommendation quality feedback. We can add more feedback surfaces here over time.
-        </p>
-        {error && <p className="error">{error}</p>}
-        {loading ? (
-          <article className="card wide-panel">
-            <p className="muted">Loading admin metrics…</p>
-          </article>
-        ) : (
-          <>
-            <div className="stat-row admin-stat-row">
-              <AdminStat label="Good recommendations" value={metrics.good} />
-              <AdminStat label="Bad recommendations" value={metrics.bad} />
-              <AdminStat label="Good rate" value={goodRate} />
-            </div>
+    <Section
+      title="Feedback metrics"
+      description="Admin metrics start with recommendation quality feedback. We can add more feedback surfaces here over time."
+    >
+      {error && <p className="error">{error}</p>}
+      {loading ? (
+        <p className="muted">Loading admin metrics…</p>
+      ) : (
+        <div className="grid gap-8">
+          <StatRow>
+            <Stat label="Good recommendations" value={metrics.good} />
+            <Stat label="Bad recommendations" value={metrics.bad} />
+            <Stat label="Good rate" value={goodRate} />
+          </StatRow>
 
-            <article className="card wide-panel admin-metrics-card">
-              <div>
-                <h3 className="admin-metrics-card__title">Recommendation feedback</h3>
-                <p className="muted">
-                  {metrics.total} of {recommendationCount} recommendations have feedback ({ratedPercent}% rated).
-                </p>
+          <div className="grid gap-3">
+            <div className="grid gap-0.5">
+              <h3 className="text-sm font-semibold tracking-tight">Recommendation feedback</h3>
+              <p className="text-sm text-muted-foreground">
+                {metrics.total} of {recommendationCount} recommendations have feedback ({ratedPercent}% rated).
+              </p>
+            </div>
+            <div className="admin-feedback-bars" aria-label="Recommendation feedback breakdown">
+              <div className="admin-feedback-bars__row">
+                <span>Good</span>
+                <Progress value={recommendationCount ? (metrics.good / recommendationCount) * 100 : 0} />
+                <strong>{metrics.good}</strong>
               </div>
-              <div className="admin-feedback-bars" aria-label="Recommendation feedback breakdown">
-                <div className="admin-feedback-bars__row">
-                  <span>Good</span>
-                  <div className="metric-row__bar">
-                    <span
-                      className="metric-row__fill admin-feedback-bars__good"
-                      style={{ width: `${recommendationCount ? (metrics.good / recommendationCount) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <strong>{metrics.good}</strong>
-                </div>
-                <div className="admin-feedback-bars__row">
-                  <span>Bad</span>
-                  <div className="metric-row__bar">
-                    <span
-                      className="metric-row__fill admin-feedback-bars__bad"
-                      style={{ width: `${recommendationCount ? (metrics.bad / recommendationCount) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <strong>{metrics.bad}</strong>
-                </div>
-                <div className="admin-feedback-bars__row">
-                  <span>Unrated</span>
-                  <div className="metric-row__bar">
-                    <span
-                      className="metric-row__fill admin-feedback-bars__unrated"
-                      style={{ width: `${recommendationCount ? (metrics.unrated / recommendationCount) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <strong>{metrics.unrated}</strong>
-                </div>
+              <div className="admin-feedback-bars__row">
+                <span>Bad</span>
+                <Progress value={recommendationCount ? (metrics.bad / recommendationCount) * 100 : 0} />
+                <strong>{metrics.bad}</strong>
               </div>
-            </article>
-          </>
-        )}
-      </div>
-    </>
+              <div className="admin-feedback-bars__row">
+                <span>Unrated</span>
+                <Progress value={recommendationCount ? (metrics.unrated / recommendationCount) * 100 : 0} />
+                <strong>{metrics.unrated}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </Section>
   );
 };
