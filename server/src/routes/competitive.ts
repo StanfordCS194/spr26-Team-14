@@ -8,11 +8,14 @@ import {
   subscribeToCompetitiveProgress,
 } from "../features/competitive/progress";
 import { runGapAnalysis } from "../features/competitive/gap-analysis.service";
+import { refreshSourcesForBrand } from "../features/competitive/sources.service";
 import { publishGapEventsToRecommendationInputs } from "../features/fixit/signal-bridge";
+import { isLLMProviderConfigured } from "../lib/llm-providers";
 
 const competitorSetSchema = z.object({
   accountBrandName: z.string().min(1),
   competitorNames: z.array(z.string().min(1)).length(5),
+  businessProfileId: z.string().min(1).optional(),
 });
 
 const competitiveRunSchema = z.object({
@@ -32,6 +35,24 @@ function ensureBrand(name: string) {
   }
   const brand = { id: crypto.randomUUID(), name };
   store.brands.set(brand.id, brand);
+  return brand;
+}
+
+function ensureAccountBrand(name: string, businessProfileId?: string) {
+  if (!businessProfileId) {
+    return ensureBrand(name);
+  }
+
+  const existingId = store.businessProfileBrandIds.get(businessProfileId);
+  const existing = existingId ? store.brands.get(existingId) : null;
+  if (existing) {
+    existing.name = name;
+    return existing;
+  }
+
+  const brand = { id: crypto.randomUUID(), name };
+  store.brands.set(brand.id, brand);
+  store.businessProfileBrandIds.set(businessProfileId, brand.id);
   return brand;
 }
 
@@ -76,7 +97,7 @@ competitiveRoutes.get("/competitive/stream/:sessionId", (c) => {
 
 competitiveRoutes.post("/competitive-sets", async (c) => {
   const body = competitorSetSchema.parse(await c.req.json());
-  const accountBrand = ensureBrand(body.accountBrandName);
+  const accountBrand = ensureAccountBrand(body.accountBrandName, body.businessProfileId);
   const competitors = body.competitorNames.map(ensureBrand);
   const competitorSet = {
     id: crypto.randomUUID(),
@@ -96,6 +117,14 @@ competitiveRoutes.post("/competitive-sets", async (c) => {
 
 competitiveRoutes.post("/competitive/runs", async (c) => {
   const body = competitiveRunSchema.parse(await c.req.json());
+  if (
+    process.env.PERCEPTION_FORCE_MOCK_LLM !== "1" &&
+    process.env.NODE_ENV !== "test" &&
+    process.env.BUN_ENV !== "test" &&
+    !isLLMProviderConfigured("openai")
+  ) {
+    return c.json({ error: "OpenAI is not configured. Set OPENAI_API_KEY to run a live benchmark." }, 503);
+  }
   const reportProgress = body.sessionId
     ? (event: Parameters<typeof publishCompetitiveProgress>[1]) => publishCompetitiveProgress(body.sessionId!, event)
     : undefined;
@@ -110,7 +139,18 @@ competitiveRoutes.post("/competitive/runs", async (c) => {
       accountBrandId: runInput.accountBrandId,
       promptRunIds: result.promptRuns.map((run) => run.id),
     });
-    const recommendationInputs = publishGapEventsToRecommendationInputs(gapEvents);
+    const { recommendationInputs, recommendations } = publishGapEventsToRecommendationInputs(gapEvents);
+    const accountBrand = store.brands.get(runInput.accountBrandId);
+    const competitorNames = runInput.competitorBrandIds
+      .map((brandId) => store.brands.get(brandId)?.name)
+      .filter((name): name is string => Boolean(name));
+    const sources = accountBrand
+      ? await refreshSourcesForBrand({
+        brandId: accountBrand.id,
+        brandName: accountBrand.name,
+        competitorNames,
+      })
+      : [];
     reportProgress?.({ type: "run_completed", message: "Benchmark run completed." });
 
     return c.json({
@@ -119,11 +159,13 @@ competitiveRoutes.post("/competitive/runs", async (c) => {
       comparisons: result.comparisons,
       gapEvents,
       recommendationInputsCount: recommendationInputs.length,
+      recommendationCount: recommendations.length,
+      sourceCount: sources.length,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Benchmark run failed.";
     reportProgress?.({ type: "run_failed", message });
-    throw error;
+    return c.json({ error: message }, 500);
   }
 });
 

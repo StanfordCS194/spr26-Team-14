@@ -2,10 +2,12 @@ import type {
   AIAnswer,
   Brand,
   ComparativeDelta,
+  CitedSource,
   CompetitorSet,
   GapEvent,
   PromptRun,
   PromptSet,
+  Recommendation,
 } from "../features/competitive/types";
 
 const nowIso = () => new Date().toISOString();
@@ -42,6 +44,7 @@ const seededPromptSet: PromptSet = {
 
 export const store = {
   brands: new Map<string, Brand>(),
+  businessProfileBrandIds: new Map<string, string>(),
   competitorSets: new Map<string, CompetitorSet>(),
   promptSets: new Map<string, PromptSet>([[seededPromptSet.id, seededPromptSet]]),
   promptRuns: new Map<string, PromptRun>(),
@@ -63,6 +66,8 @@ export const store = {
     payload: Record<string, unknown>;
     createdAt: string;
   }>,
+  recommendations: [] as Recommendation[],
+  citedSources: [] as CitedSource[],
 };
 
 export const seedPromptSetId = seededPromptSet.id;
@@ -71,6 +76,7 @@ export const getNowIso = nowIso;
 
 export function resetStore() {
   store.brands.clear();
+  store.businessProfileBrandIds.clear();
   store.competitorSets.clear();
   store.promptRuns.clear();
   store.answers.clear();
@@ -78,4 +84,6 @@ export function resetStore() {
   store.gapEvents.length = 0;
   store.benchmarkSnapshots.length = 0;
   store.recommendationInputs.length = 0;
+  store.recommendations.length = 0;
+  store.citedSources.length = 0;
 }

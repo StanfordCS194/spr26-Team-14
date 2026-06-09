@@ -1,3 +1,5 @@
+import path from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
@@ -6,9 +8,14 @@ export default defineConfig(({ mode }) => {
   const apiPort = env.VITE_API_PORT || "3000";
 
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     optimizeDeps: {
       include: ["react", "react-dom"],
+    },
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
     server: {
       // Bind all interfaces so localhost / 127.0.0.1 / LAN URLs all reach the dev server.

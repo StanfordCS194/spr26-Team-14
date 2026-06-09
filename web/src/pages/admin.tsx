@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
-import { DEMO_BRAND_NAME, NETFLIX_RECOMMENDATIONS } from "../seed/demo-content";
 import type { AdminMetricsResponse, BusinessProfile, RecommendationFeedbackMetrics } from "../types";
 
 const emptyMetrics: RecommendationFeedbackMetrics = {
@@ -20,10 +19,6 @@ const AdminStat = ({ label, value }: AdminStatProps) => (
 );
 
 export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
-  const recommendationCount = useMemo(
-    () => (profile.name === DEMO_BRAND_NAME ? NETFLIX_RECOMMENDATIONS.length : 0),
-    [profile.name],
-  );
   const [metrics, setMetrics] = useState<RecommendationFeedbackMetrics>(emptyMetrics);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,13 +26,14 @@ export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
   useEffect(() => {
     setLoading(true);
     setError("");
-    fetch(`${API_BASE}/business-profiles/${profile.id}/admin/metrics?recommendationCount=${recommendationCount}`)
+    fetch(`${API_BASE}/business-profiles/${profile.id}/admin/metrics`)
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((body: AdminMetricsResponse) => setMetrics(body.recommendationFeedback))
       .catch(() => setError("Could not load admin metrics."))
       .finally(() => setLoading(false));
-  }, [profile.id, recommendationCount]);
+  }, [profile.id]);
 
+  const recommendationCount = metrics.total + metrics.unrated;
   const ratedPercent = recommendationCount === 0 ? 0 : Math.round((metrics.total / recommendationCount) * 100);
   const goodRate = metrics.total === 0 ? "0%" : `${Math.round((metrics.good / metrics.total) * 100)}%`;
 

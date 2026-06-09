@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { API_BASE } from "../api"
-import {
-  DEMO_BRAND_NAME,
-  NETFLIX_RECOMMENDATIONS,
-  type Recommendation,
-} from "../seed/demo-content"
-import type { BusinessProfile, RecommendationFeedback, RecommendationRating } from "../types"
+import type {
+  BusinessProfile,
+  Recommendation,
+  RecommendationFeedback,
+  RecommendationRating,
+  RecommendationStatus,
+  RecommendationsResponse,
+} from "../types"
 
 const IMPACT_ORDER: Record<Recommendation["impact"], number> = {
   high: 0,
@@ -27,6 +29,13 @@ const sortRecommendations = (recs: Recommendation[]) => {
   })
 }
 
+const normalizeEvidence = (text: string) =>
+  text
+    .replaceAll(/\s*\([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\)/gi, "")
+    .replaceAll(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "the brand")
+    .replaceAll(/\s+/g, " ")
+    .trim()
+
 type SummaryStatProps = { label: string; value: number }
 
 const SummaryStat = ({ label, value }: SummaryStatProps) => (
@@ -41,9 +50,10 @@ type RecommendationItemProps = {
   rank: number
   rating?: RecommendationRating
   onRate: (recommendationId: string, rating: RecommendationRating) => void
+  onStatus: (recommendationId: string, status: RecommendationStatus) => void
 }
 
-const RecommendationItem = ({ rec, rank, rating, onRate }: RecommendationItemProps) => {
+const RecommendationItem = ({ rec, rank, rating, onRate, onStatus }: RecommendationItemProps) => {
   const titleId = `rec-title-${rec.id}`
   return (
     <article className="card" aria-labelledby={titleId}>
@@ -57,9 +67,30 @@ const RecommendationItem = ({ rec, rank, rating, onRate }: RecommendationItemPro
         {rec.title}
       </h3>
       <p className="subhead">Signal</p>
-      <p className="rec-item__body">{rec.evidence}</p>
+      <p className="rec-item__body">{normalizeEvidence(rec.evidence)}</p>
       <p className="subhead">Suggested action</p>
       <p className="rec-item__body">{rec.action}</p>
+      <div className="inline-form">
+        <label>
+          Status
+          <select
+            value={rec.status}
+            onChange={(event) => onStatus(rec.id, event.target.value as RecommendationStatus)}
+          >
+            <option value="proposed">Proposed</option>
+            <option value="planned">Planned</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </label>
+        {rec.targetProvider && <span className="chip">Target: {rec.targetProvider}</span>}
+        {rec.lift.delta !== null && (
+          <span className="chip">
+            Measured lift: {rec.lift.delta >= 0 ? "+" : ""}{rec.lift.delta.toFixed(2)}
+          </span>
+        )}
+      </div>
       <div className="rec-feedback" aria-label={`Feedback for ${rec.title}`}>
         <span className="rec-feedback__label">Was this recommendation useful?</span>
         <div className="rec-feedback__actions">
@@ -86,22 +117,36 @@ const RecommendationItem = ({ rec, rank, rating, onRate }: RecommendationItemPro
 }
 
 export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) => {
-  const isSeededBrand = profile.name === DEMO_BRAND_NAME
-  const recs = useMemo(() => (isSeededBrand ? sortRecommendations(NETFLIX_RECOMMENDATIONS) : []), [isSeededBrand])
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [ratings, setRatings] = useState<Record<string, RecommendationRating>>({})
+  const [loading, setLoading] = useState(true)
   const [feedbackError, setFeedbackError] = useState("")
+  const [loadError, setLoadError] = useState("")
+  const recs = useMemo(() => sortRecommendations(recommendations), [recommendations])
 
   useEffect(() => {
+    setRecommendations([])
     setRatings({})
     setFeedbackError("")
-    fetch(`${API_BASE}/business-profiles/${profile.id}/recommendation-feedback`)
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((body: { feedback: RecommendationFeedback[] }) => {
+    setLoadError("")
+    setLoading(true)
+
+    Promise.all([
+      fetch(`${API_BASE}/business-profiles/${profile.id}/recommendations`).then((res) =>
+        res.ok ? res.json() : Promise.reject(new Error("Could not load recommendations.")),
+      ),
+      fetch(`${API_BASE}/business-profiles/${profile.id}/recommendation-feedback`).then((res) =>
+        res.ok ? res.json() : Promise.reject(new Error("Could not load recommendation feedback.")),
+      ),
+    ])
+      .then(([recommendationBody, feedbackBody]: [RecommendationsResponse, { feedback: RecommendationFeedback[] }]) => {
+        setRecommendations(recommendationBody.recommendations)
         setRatings(
-          Object.fromEntries(body.feedback.map((item) => [item.recommendationId, item.rating])),
+          Object.fromEntries(feedbackBody.feedback.map((item) => [item.recommendationId, item.rating])),
         )
       })
-      .catch(() => setFeedbackError("Could not load recommendation feedback."))
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "Could not load recommendations."))
+      .finally(() => setLoading(false))
   }, [profile.id])
 
   async function rateRecommendation(recommendationId: string, rating: RecommendationRating) {
@@ -124,20 +169,51 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
     }
   }
 
+  async function updateStatus(recommendationId: string, status: RecommendationStatus) {
+    const previous = recommendations
+    setRecommendations((current) => current.map((rec) => rec.id === recommendationId ? { ...rec, status } : rec))
+    const res = await fetch(
+      `${API_BASE}/business-profiles/${profile.id}/recommendations/${recommendationId}/status`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status }),
+      },
+    )
+    if (!res.ok) {
+      setRecommendations(previous)
+      setFeedbackError("Could not update recommendation status.")
+      return
+    }
+    const updated = await res.json() as Recommendation
+    setRecommendations((current) => current.map((rec) => rec.id === recommendationId ? updated : rec))
+  }
+
+  if (loading) {
+    return (
+      <article className="panel wide-panel">
+        <p className="muted">Recommendations</p>
+        <h2>Loading recommendations…</h2>
+      </article>
+    )
+  }
+
   if (recs.length === 0) {
     return (
       <article className="panel wide-panel">
         <p className="muted">Recommendations</p>
         <h2>No recommendations for {profile.name} yet</h2>
+        {loadError && <p className="error">{loadError}</p>}
         <p className="muted">
-          Run a benchmark on Benchmarking to surface gaps; we&rsquo;ll prioritise fix-it ideas here.
+          Run a live benchmark on Benchmarking to surface gaps; we&rsquo;ll prioritise fix-it ideas here.
         </p>
       </article>
     )
   }
 
-  const highImpact = recs.filter((r) => r.impact === "high").length
-  const quickWins = recs.filter(
+  const activeRecs = recs.filter((r) => r.status !== "completed" && r.status !== "dismissed")
+  const highImpact = activeRecs.filter((r) => r.impact === "high").length
+  const quickWins = activeRecs.filter(
     (r) => r.effort === "low" && (r.impact === "high" || r.impact === "medium"),
   ).length
 
@@ -147,7 +223,7 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
         <h2 className="block__title">At a glance</h2>
         <p className="muted">Initiative counts for {profile.name}, ranked like the benchmarking tabs.</p>
         <div className="stat-row">
-          <SummaryStat label="Active initiatives" value={recs.length} />
+          <SummaryStat label="Active initiatives" value={activeRecs.length} />
           <SummaryStat label="High impact" value={highImpact} />
           <SummaryStat label="Quick wins" value={quickWins} />
         </div>
@@ -156,6 +232,7 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
       <div className="block">
         <h2 className="block__title">Prioritised actions</h2>
         <p className="muted">High impact first. Each card maps to a detected gap or whitespace cue.</p>
+        {loadError && <p className="error">{loadError}</p>}
         {feedbackError && <p className="error">{feedbackError}</p>}
         <div className="rec-stack">
           {recs.map((rec, i) => (
@@ -165,6 +242,7 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
               rank={i + 1}
               rating={ratings[rec.id]}
               onRate={rateRecommendation}
+              onStatus={updateStatus}
             />
           ))}
         </div>

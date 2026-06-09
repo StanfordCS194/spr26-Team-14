@@ -15,8 +15,8 @@ if ((process.env.PERCEPTION_DEMO_SEED ?? "1") !== "0") {
   const profile = loadNetflixProfileSeed();
   console.log(
     profile.created
-      ? `[seed] Created Netflix business profile (${profile.profileId}) with ${profile.monitoringCount} monitoring prompts.`
-      : `[seed] Netflix business profile already exists (${profile.profileId}); ${profile.monitoringCount} monitoring prompts.`,
+      ? `[seed] Created Netflix business profile (${profile.profileId}) with ${profile.monitoringCount} monitoring prompts and ${profile.monitoringHistoryCount} graph points.`
+      : `[seed] Netflix business profile already exists (${profile.profileId}); ${profile.monitoringCount} monitoring prompts and ${profile.monitoringHistoryCount} graph points.`,
   );
 }
 
@@ -33,7 +33,7 @@ app.use(
       "http://localhost:5175",
       "http://127.0.0.1:5175",
     ],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }),
 );
 
@@ -44,5 +44,6 @@ app.route("/", llmStatusRoutes);
 
 export default {
   port: Number(process.env.PORT ?? 3000),
+  idleTimeout: Number(process.env.PERCEPTION_SERVER_IDLE_TIMEOUT ?? 255),
   fetch: app.fetch,
 };

@@ -1,25 +1,14 @@
 import { useEffect, useState } from "react";
-import type { BusinessProfile, MonitoringResponse } from "../types";
-
-const API_BASE =
-  import.meta.env.DEV === true ? "/api" : (import.meta.env.VITE_API_URL ?? "http://localhost:3000");
+import { API_BASE } from "../api";
+import type { BusinessProfile, MonitoringHistoryPoint, MonitoringResponse } from "../types";
 
 function sentimentLabel(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-const sentimentHistory = [-0.18, -0.08, 0.04, 0.12, 0.26, 0.18, -0.06].map((score, index) => {
-  const date = new Date();
-  date.setDate(date.getDate() - (6 - index));
-  return {
-    date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-    score,
-  };
-});
-
 const yTicks = [-1, -0.5, 0, 0.5, 1];
 
-export function SentimentTrend() {
+export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] }) {
   const width = 700;
   const height = 220;
   const padX = 48;
@@ -27,11 +16,26 @@ export function SentimentTrend() {
   const padBottom = 32;
   const chartHeight = height - padTop - padBottom;
   const yForScore = (score: number) => padTop + ((1 - score) / 2) * chartHeight;
-  const midY = yForScore(0);
-  const points = sentimentHistory.map((item, index) => {
-    const x = padX + (index * (width - padX * 2)) / (sentimentHistory.length - 1);
+  const dailyHistory = Object.values(history.reduce<Record<string, { t: string; total: number; count: number }>>(
+    (days, item) => {
+      const date = new Date(item.t).toLocaleDateString();
+      const current = days[date] ?? { t: item.t, total: 0, count: 0 };
+      days[date] = { t: item.t, total: current.total + item.score, count: current.count + 1 };
+      return days;
+    },
+    {},
+  )).map((day) => ({ t: day.t, score: day.total / day.count }));
+  const points = dailyHistory.map((item, index) => {
+    const x = dailyHistory.length === 1
+      ? width / 2
+      : padX + (index * (width - padX * 2)) / (dailyHistory.length - 1);
     const y = yForScore(item.score);
-    return { ...item, x, y };
+    return {
+      date: new Date(item.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      score: item.score,
+      x,
+      y,
+    };
   });
 
   return (
@@ -43,7 +47,7 @@ export function SentimentTrend() {
       <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
         {points.map((point) => (
           <line
-            key={`grid-${point.date}`}
+            key={`grid-${point.date}-${point.x}`}
             className="grid-line"
             x1={point.x}
             x2={point.x}
@@ -67,7 +71,7 @@ export function SentimentTrend() {
           const positive = (point.score + next.score) / 2 >= 0;
           return (
             <line
-              key={point.date}
+              key={`${point.date}-${point.x}`}
               className={positive ? "trend-line trend-positive" : "trend-line trend-negative"}
               x1={point.x}
               x2={next.x}
@@ -77,13 +81,18 @@ export function SentimentTrend() {
           );
         })}
         {points.map((point) => (
-          <g key={point.date}>
+          <g key={`${point.date}-${point.x}`}>
             <circle className={point.score >= 0 ? "trend-dot trend-dot-positive" : "trend-dot trend-dot-negative"} cx={point.x} cy={point.y} r="5" />
             <text className="chart-label" x={point.x} y={height - 4} textAnchor="middle">
               {point.date}
             </text>
           </g>
         ))}
+        {points.length === 0 && (
+          <text className="chart-label" x={width / 2} y={height / 2} textAnchor="middle">
+            Run monitoring to build a live sentiment trend.
+          </text>
+        )}
       </svg>
     </section>
   );
@@ -92,7 +101,10 @@ export function SentimentTrend() {
 export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
   const [data, setData] = useState<MonitoringResponse | null>(null);
   const [newPrompt, setNewPrompt] = useState("");
+  const [newCategory, setNewCategory] = useState<MonitoringResponse["prompts"][number]["category"]>("custom");
+  const [newCadence, setNewCadence] = useState<MonitoringResponse["prompts"][number]["cadence"]>("daily");
   const [error, setError] = useState("");
+  const [running, setRunning] = useState(false);
 
   async function load() {
     const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring`);
@@ -123,17 +135,51 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
     if (!prompt) {
       return;
     }
-    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) {
-      setError("Could not add prompt.");
-      return;
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt, category: newCategory, cadence: newCadence, active: true }),
+      });
+      if (!res.ok) {
+        setError("Could not add prompt.");
+        return;
+      }
+      setNewPrompt("");
+      await load();
+    } catch {
+      setError("Could not add prompt. Check your connection and try again.");
     }
-    setNewPrompt("");
-    await load();
+  }
+
+  async function togglePrompt(item: MonitoringResponse["prompts"][number]) {
+    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts/${item.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...item, active: !item.active }),
+    });
+    if (res.ok) await load();
+  }
+
+  async function runLiveMonitoring() {
+    setRunning(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring/runs`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Could not run live monitoring.");
+        return;
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not run live monitoring.");
+    } finally {
+      setRunning(false);
+    }
   }
 
   if (!data || (data.status === "generating" && data.prompts.length === 0)) {
@@ -151,28 +197,84 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
       <p className="muted">Monitoring</p>
       <h2>{profile.name}</h2>
       <p>Track the prompts where this business should appear in chatbot answers.</p>
-      <SentimentTrend />
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat__label">Stored responses</div>
+          <div className="stat__value">{data.summary.totalResponses}</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Mention frequency</div>
+          <div className="stat__value">{Math.round(data.summary.mentionFrequency * 100)}%</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Recommended responses</div>
+          <div className="stat__value">{data.summary.recommendedResponses}</div>
+        </div>
+      </div>
+      <SentimentTrend history={data.history} />
+      <div className="inline-form">
+        <button type="button" onClick={runLiveMonitoring} disabled={running || data.prompts.length === 0}>
+          {running ? "Running monitoring…" : "Run live monitoring"}
+        </button>
+      </div>
 
       <table>
         <thead>
           <tr>
             <th>Prompt</th>
+            <th>Category</th>
+            <th>Cadence</th>
             <th>Mention</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {data.prompts.map((item) => (
             <tr key={item.id}>
               <td>{item.prompt}</td>
+              <td>{item.category}</td>
+              <td>{item.cadence}</td>
               <td>
                 <span className={`sentiment sentiment-${item.mentionSentiment}`}>
                   {sentimentLabel(item.mentionSentiment)}
                 </span>
               </td>
+              <td><button type="button" onClick={() => togglePrompt(item)}>{item.active ? "Active" : "Paused"}</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <h3>Provider health</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Successful</th>
+            <th>Mentions</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.summary.providerBreakdown.map((item) => (
+            <tr key={item.provider}>
+              <td>{sentimentLabel(item.provider)}</td>
+              <td>{item.successes} / {item.attempts}</td>
+              <td>{item.mentions}</td>
+              <td>{item.errors}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {data.summary.latestAttempts.some((attempt) => attempt.status === "error") && (
+        <div className="error">
+          {data.summary.latestAttempts
+            .filter((attempt) => attempt.status === "error")
+            .map((attempt) => `${sentimentLabel(attempt.provider)}: ${attempt.error}`)
+            .join(" ")}
+        </div>
+      )}
 
       <div className="inline-form">
         <input
@@ -180,6 +282,17 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
           value={newPrompt}
           onChange={(event) => setNewPrompt(event.target.value)}
         />
+        <select value={newCategory} onChange={(event) => setNewCategory(event.target.value as typeof newCategory)}>
+          <option value="comparison">Comparison</option>
+          <option value="recommendation">Recommendation</option>
+          <option value="feature">Feature</option>
+          <option value="pricing">Pricing</option>
+          <option value="custom">Custom</option>
+        </select>
+        <select value={newCadence} onChange={(event) => setNewCadence(event.target.value as typeof newCadence)}>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
         <button type="button" onClick={addPrompt} disabled={!newPrompt.trim()}>
           Add prompt
         </button>
