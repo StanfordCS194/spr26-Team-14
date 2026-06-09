@@ -66,6 +66,40 @@ export function runMigrations() {
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
       FOREIGN KEY (monitoring_prompt_id) REFERENCES monitoring_prompts(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS monitoring_runs (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      completed_at TEXT,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS monitoring_attempts (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      business_profile_id TEXT NOT NULL,
+      monitoring_prompt_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      status TEXT NOT NULL,
+      raw_response TEXT,
+      score REAL,
+      mention_sentiment TEXT,
+      mention_position INTEGER,
+      recommended INTEGER NOT NULL DEFAULT 0,
+      feature_sentiment_json TEXT NOT NULL DEFAULT '{}',
+      sources_json TEXT NOT NULL DEFAULT '[]',
+      error TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (run_id) REFERENCES monitoring_runs(id) ON DELETE CASCADE,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_prompt_id) REFERENCES monitoring_prompts(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS monitoring_attempts_profile_created_idx
+      ON monitoring_attempts (business_profile_id, created_at);
   `);
 }
 

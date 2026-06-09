@@ -6,7 +6,12 @@ import { recommendationFeedback } from "../db/recommendation-feedback";
 import { store } from "../db/store";
 import { sourcesForBrand } from "../features/competitive/sources.service";
 import { recommendationsForBrand } from "../features/fixit/recommendations";
-import { monitoringHistory, runMonitoring } from "../features/monitoring/run-monitoring";
+import {
+  defaultMonitoringProviders,
+  monitoringHistory,
+  monitoringSummary,
+  runMonitoring,
+} from "../features/monitoring/run-monitoring";
 import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
 import { isLLMProviderConfigured } from "../lib/llm-providers";
 
@@ -21,15 +26,6 @@ export const businessRoutes = new Hono();
 function brandIdForProfile(profileId: string) {
   const brandId = store.businessProfileBrandIds.get(profileId);
   return brandId && store.brands.has(brandId) ? brandId : null;
-}
-
-function liveProviderUnavailable() {
-  return (
-    process.env.PERCEPTION_FORCE_MOCK_LLM !== "1" &&
-    process.env.NODE_ENV !== "test" &&
-    process.env.BUN_ENV !== "test" &&
-    !isLLMProviderConfigured("openai")
-  );
 }
 
 businessRoutes.get("/business-profiles", (c) => {
@@ -90,6 +86,7 @@ businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
     error: state.error,
     prompts: monitoringPrompts.list(id),
     history: monitoringHistory(id),
+    summary: monitoringSummary(id),
   });
 });
 
@@ -98,11 +95,13 @@ businessRoutes.post("/business-profiles/:id/monitoring/runs", async (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  if (liveProviderUnavailable()) {
-    return c.json({ error: "OpenAI is not configured. Set OPENAI_API_KEY to run live monitoring." }, 503);
-  }
-  const results = await runMonitoring(profile);
-  return c.json({ results });
+  const body = await c.req.json().catch(() => ({}));
+  const runSchema = z.object({
+    providers: z.array(z.enum(["openai", "anthropic", "gemini"])).min(1).default(defaultMonitoringProviders),
+  });
+  const { providers } = runSchema.parse(body);
+  const run = await runMonitoring(profile, providers);
+  return c.json(run);
 });
 
 businessRoutes.get("/business-profiles/:id/monitoring/history", (c) => {
