@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./app.css";
 import { API_BASE } from "./api";
+import { AccuracyPage } from "./pages/accuracy";
 import { AdminPage } from "./pages/admin";
 import { CompetitivePage } from "./pages/competitive";
 import { MonitoringPage } from "./pages/monitoring";
@@ -59,6 +60,7 @@ type BusinessProfileInput = Pick<BusinessProfile, "name" | "website" | "descript
 
 const navItems = [
   { key: "monitoring", label: "Monitoring", description: "AI mention frequency, sentiment, and trends." },
+  { key: "accuracy", label: "Accuracy Guard", description: "Ground truth and AI misinformation alerts." },
   { key: "benchmarking", label: "Benchmarking", description: "Compare your brand against competitors in AI answers." },
   { key: "recommendations", label: "Recommendations", description: "Prioritized fix-it ideas from detected gaps." },
   { key: "sources", label: "Sources", description: "Reddit, publications, reviews, and other sources AI cites." },
@@ -210,6 +212,8 @@ export function ProfileDashboard({
 
         {activePage === "monitoring" ? (
           <MonitoringPage profile={profile} />
+        ) : activePage === "accuracy" ? (
+          <AccuracyPage profile={profile} />
         ) : activePage === "recommendations" ? (
           <RecommendationsPage profile={profile} />
         ) : activePage === "sources" ? (

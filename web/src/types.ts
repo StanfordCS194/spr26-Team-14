@@ -62,6 +62,33 @@ export interface MonitoringSummary {
   latestAttempts: MonitoringAttempt[];
 }
 
+export type FactCategory = "pricing" | "feature" | "executive" | "company" | "custom";
+
+export interface BrandFact {
+  id: string;
+  businessProfileId: string;
+  category: FactCategory;
+  label: string;
+  value: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccuracyAlert {
+  id: string;
+  businessProfileId: string;
+  monitoringAttemptId: string;
+  brandFactId: string;
+  severity: "high" | "medium" | "low";
+  status: "open" | "acknowledged";
+  observedClaim: string;
+  expectedValue: string;
+  explanation: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type RecommendationRating = "good" | "bad";
 
 export interface RecommendationFeedback {
