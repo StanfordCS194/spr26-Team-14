@@ -8,6 +8,7 @@ import {
 } from "../../db/monitoring-runs";
 import { parseMonitoringResponse } from "./parse-response";
 import { callMonitoringProvider } from "./providers";
+import { recordAttemptSources } from "../sources/source-attribution";
 
 export const defaultMonitoringProviders: MonitoringProvider[] = ["openai", "anthropic", "gemini"];
 
@@ -59,6 +60,7 @@ export async function runMonitoring(
             answerSummary: response.text.slice(0, 280),
             sources: parsed.sources,
           });
+          recordAttemptSources(profile, attempt);
           return attempt;
         } catch (error) {
           return monitoringRuns.addAttempt({

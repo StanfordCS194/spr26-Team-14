@@ -126,6 +126,10 @@ export interface CitedSource {
   brandsMentioned: string[];
   sentiment: CitedSentiment;
   sourceType: SourceType;
+  url: string;
+  providers: MonitoringProvider[];
+  monitoringPromptIds: string[];
+  relatedRecommendationIds: string[];
   createdAt: string;
 }
 

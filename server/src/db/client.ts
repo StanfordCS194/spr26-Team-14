@@ -121,6 +121,24 @@ export function runMigrations() {
       UNIQUE (business_profile_id, source_gap_event_id),
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS source_citations (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      monitoring_attempt_id TEXT NOT NULL,
+      monitoring_prompt_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      url TEXT NOT NULL,
+      canonical_url TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      sentiment TEXT NOT NULL,
+      brands_mentioned_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (monitoring_attempt_id, canonical_url),
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
+    );
   `);
 }
 

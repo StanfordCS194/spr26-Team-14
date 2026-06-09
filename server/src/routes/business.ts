@@ -4,10 +4,9 @@ import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
 import { profileRecommendations } from "../db/profile-recommendations";
 import { recommendationFeedback } from "../db/recommendation-feedback";
-import { store } from "../db/store";
-import { sourcesForBrand } from "../features/competitive/sources.service";
 import { buildMonitoringBenchmark } from "../features/competitive/monitoring-benchmark";
 import { syncProfileRecommendations } from "../features/fixit/profile-recommendations";
+import { aggregateSources } from "../features/sources/source-attribution";
 import {
   defaultMonitoringProviders,
   monitoringHistory,
@@ -24,11 +23,6 @@ const profileSchema = z.object({
 });
 
 export const businessRoutes = new Hono();
-
-function brandIdForProfile(profileId: string) {
-  const brandId = store.businessProfileBrandIds.get(profileId);
-  return brandId && store.brands.has(brandId) ? brandId : null;
-}
 
 businessRoutes.get("/business-profiles", (c) => {
   return c.json({ profiles: businessProfiles.list() });
@@ -175,8 +169,13 @@ businessRoutes.get("/business-profiles/:id/sources", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const brandId = brandIdForProfile(profile.id);
-  const sources = brandId ? sourcesForBrand(brandId) : [];
+  const filterSchema = z.object({
+    provider: z.enum(["openai", "anthropic", "gemini"]).optional(),
+    sourceType: z.enum(["reddit", "publication", "review", "video", "wiki", "other"]).optional(),
+    sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
+    windowDays: z.coerce.number().int().min(1).max(90).default(7),
+  });
+  const sources = aggregateSources(profile, filterSchema.parse(c.req.query()));
   return c.json({
     sources,
     llmConfigured: isLLMProviderConfigured("openai"),

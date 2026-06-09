@@ -12,7 +12,7 @@
     "dev:web": "bun run --cwd web dev",
     "build:web": "bun run --cwd web build",
     "demo": "echo 'Run: bun install && bun run dev  →  open http://localhost:5173  →  click Run Sephora demo benchmark'",
-    "test:server": "PERCEPTION_FORCE_MOCK_LLM=1 bun test --cwd server src/features/competitive/__tests__/pipeline.test.ts src/features/competitive/__tests__/benchmark.service.test.ts src/features/competitive/__tests__/gap-analysis.service.test.ts src/features/competitive/monitoring-benchmark.test.ts src/features/monitoring/parse-response.test.ts src/lib/llm-providers.test.ts src/routes/business.test.ts src/routes/competitive.test.ts",
+    "test:server": "PERCEPTION_FORCE_MOCK_LLM=1 bun test --cwd server src/features/competitive/__tests__/pipeline.test.ts src/features/competitive/__tests__/benchmark.service.test.ts src/features/competitive/__tests__/gap-analysis.service.test.ts src/features/competitive/monitoring-benchmark.test.ts src/features/monitoring/parse-response.test.ts src/features/sources/source-attribution.test.ts src/lib/llm-providers.test.ts src/routes/business.test.ts src/routes/competitive.test.ts",
     "test:web": "bun test --cwd web src/__tests__/app.test.tsx src/components/competitive/__tests__/components.test.tsx",
     "test": "bun run test:server && bun run test:web"
   }

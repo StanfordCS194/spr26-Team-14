@@ -1,14 +1,43 @@
 import { Hono } from "hono";
 import { expect, test } from "bun:test";
 import { businessProfiles } from "../db/business-profiles";
+import { monitoringPrompts } from "../db/monitoring-prompts";
 import { monitoringRuns } from "../db/monitoring-runs";
 import { profileRecommendations } from "../db/profile-recommendations";
 import { store } from "../db/store";
+import { recordAttemptSources } from "../features/sources/source-attribution";
 import { businessRoutes } from "./business";
 
 process.env.DISABLE_ONBOARDING_PROMPT_GENERATION = "1";
 
 const app = new Hono().route("/", businessRoutes);
+
+function recordSourceForProfile(
+  profile: ReturnType<typeof businessProfiles.create>,
+  url: string,
+  provider: "openai" | "anthropic" | "gemini" = "openai",
+) {
+  const prompt = monitoringPrompts.add(profile.id, `Which source describes ${profile.name} accurately?`);
+  const runId = monitoringRuns.start(profile.id);
+  const attempt = monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider,
+    model: "mock",
+    status: "success",
+    rawResponse: `${profile.name} is discussed at ${url}`,
+    score: 0.4,
+    mentionSentiment: "positive",
+    mentionPosition: 0,
+    recommended: false,
+    featureSentiment: {},
+    sources: [url],
+    error: null,
+  });
+  monitoringRuns.finish(runId, "completed");
+  recordAttemptSources(profile, attempt);
+}
 
 test("creates and lists business profiles", async () => {
   const name = `Acme ${crypto.randomUUID()}`;
@@ -177,6 +206,8 @@ test("returns live recommendations and source attributions for matching brand", 
     sourceType: "publication",
     createdAt: new Date().toISOString(),
   });
+  recordSourceForProfile(profile, "https://www.example.com/streaming?utm_source=test");
+  recordSourceForProfile(profile, "https://example.com/streaming/?ref=duplicate", "gemini");
 
   const recRes = await app.request(`/business-profiles/${profile.id}/recommendations`);
   expect(recRes.status).toBe(200);
@@ -184,7 +215,17 @@ test("returns live recommendations and source attributions for matching brand", 
 
   const sourceRes = await app.request(`/business-profiles/${profile.id}/sources`);
   expect(sourceRes.status).toBe(200);
-  expect((await sourceRes.json()).sources[0].domain).toBe("example.com");
+  const sourceBody = await sourceRes.json();
+  expect(sourceBody.sources[0].domain).toBe("example.com");
+  expect(sourceBody.sources[0].citationsThisWeek).toBe(2);
+  expect(new Set(sourceBody.sources[0].providers)).toEqual(new Set(["openai", "gemini"]));
+  expect(sourceBody.sources[0].relatedRecommendationIds).toHaveLength(1);
+
+  const geminiSources = await (
+    await app.request(`/business-profiles/${profile.id}/sources?provider=gemini`)
+  ).json();
+  expect(geminiSources.sources).toHaveLength(1);
+  expect(geminiSources.sources[0].citationsThisWeek).toBe(1);
 });
 
 test("keeps recommendations and sources isolated for duplicate profile names", async () => {
@@ -279,6 +320,8 @@ test("keeps recommendations and sources isolated for duplicate profile names", a
       createdAt: new Date().toISOString(),
     },
   );
+  recordSourceForProfile(firstProfile, "https://first.example/article");
+  recordSourceForProfile(secondProfile, "https://second.example/article");
 
   const firstRecommendationsRes = await app.request(`/business-profiles/${firstProfile.id}/recommendations`);
   const secondRecommendationsRes = await app.request(`/business-profiles/${secondProfile.id}/recommendations`);
@@ -291,11 +334,11 @@ test("keeps recommendations and sources isolated for duplicate profile names", a
 
   const firstSourcesRes = await app.request(`/business-profiles/${firstProfile.id}/sources`);
   const secondSourcesRes = await app.request(`/business-profiles/${secondProfile.id}/sources`);
-  expect((await firstSourcesRes.json()).sources.map((source: { id: string }) => source.id)).toEqual([
-    "src-first-duplicate",
+  expect((await firstSourcesRes.json()).sources.map((source: { domain: string }) => source.domain)).toEqual([
+    "first.example",
   ]);
-  expect((await secondSourcesRes.json()).sources.map((source: { id: string }) => source.id)).toEqual([
-    "src-second-duplicate",
+  expect((await secondSourcesRes.json()).sources.map((source: { domain: string }) => source.domain)).toEqual([
+    "second.example",
   ]);
 });
 
