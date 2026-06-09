@@ -3,7 +3,12 @@ import { z } from "zod";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
 import { recommendationFeedback } from "../db/recommendation-feedback";
+import { store } from "../db/store";
+import { sourcesForBrand } from "../features/competitive/sources.service";
+import { recommendationsForBrand } from "../features/fixit/recommendations";
+import { monitoringHistory, runMonitoring } from "../features/monitoring/run-monitoring";
 import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
+import { isLLMProviderConfigured } from "../lib/llm-providers";
 
 const profileSchema = z.object({
   name: z.string().trim().min(1),
@@ -12,6 +17,19 @@ const profileSchema = z.object({
 });
 
 export const businessRoutes = new Hono();
+
+function brandIdForProfileName(name: string) {
+  return Array.from(store.brands.values()).find((brand) => brand.name === name)?.id ?? null;
+}
+
+function liveProviderUnavailable() {
+  return (
+    process.env.PERCEPTION_FORCE_MOCK_LLM !== "1" &&
+    process.env.NODE_ENV !== "test" &&
+    process.env.BUN_ENV !== "test" &&
+    !isLLMProviderConfigured("openai")
+  );
+}
 
 businessRoutes.get("/business-profiles", (c) => {
   return c.json({ profiles: businessProfiles.list() });
@@ -70,7 +88,28 @@ businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
     status: state.monitoring_status,
     error: state.error,
     prompts: monitoringPrompts.list(id),
+    history: monitoringHistory(id),
   });
+});
+
+businessRoutes.post("/business-profiles/:id/monitoring/runs", async (c) => {
+  const profile = businessProfiles.get(c.req.param("id"));
+  if (!profile) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  if (liveProviderUnavailable()) {
+    return c.json({ error: "OpenAI is not configured. Set OPENAI_API_KEY to run live monitoring." }, 503);
+  }
+  const results = await runMonitoring(profile);
+  return c.json({ results });
+});
+
+businessRoutes.get("/business-profiles/:id/monitoring/history", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  return c.json({ history: monitoringHistory(id) });
 });
 
 businessRoutes.post("/business-profiles/:id/monitoring-prompts", async (c) => {
@@ -90,6 +129,32 @@ businessRoutes.get("/business-profiles/:id/recommendation-feedback", (c) => {
   return c.json({ feedback: recommendationFeedback.list(id) });
 });
 
+businessRoutes.get("/business-profiles/:id/recommendations", (c) => {
+  const profile = businessProfiles.get(c.req.param("id"));
+  if (!profile) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const brandId = brandIdForProfileName(profile.name);
+  const recommendations = brandId ? recommendationsForBrand(brandId) : [];
+  return c.json({
+    recommendations,
+    llmConfigured: isLLMProviderConfigured("openai"),
+  });
+});
+
+businessRoutes.get("/business-profiles/:id/sources", (c) => {
+  const profile = businessProfiles.get(c.req.param("id"));
+  if (!profile) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const brandId = brandIdForProfileName(profile.name);
+  const sources = brandId ? sourcesForBrand(brandId) : [];
+  return c.json({
+    sources,
+    llmConfigured: isLLMProviderConfigured("openai"),
+  });
+});
+
 businessRoutes.put("/business-profiles/:id/recommendation-feedback", async (c) => {
   const id = c.req.param("id");
   if (!businessProfiles.get(id)) {
@@ -101,11 +166,13 @@ businessRoutes.put("/business-profiles/:id/recommendation-feedback", async (c) =
 
 businessRoutes.get("/business-profiles/:id/admin/metrics", (c) => {
   const id = c.req.param("id");
-  if (!businessProfiles.get(id)) {
+  const profile = businessProfiles.get(id);
+  if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const recommendationCount = Number(c.req.query("recommendationCount") ?? 0);
+  const brandId = brandIdForProfileName(profile.name);
+  const recommendationCount = brandId ? recommendationsForBrand(brandId).length : 0;
   return c.json({
-    recommendationFeedback: recommendationFeedback.metrics(id, Number.isFinite(recommendationCount) ? recommendationCount : 0),
+    recommendationFeedback: recommendationFeedback.metrics(id, recommendationCount),
   });
 });

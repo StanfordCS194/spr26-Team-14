@@ -78,3 +78,35 @@ export interface GapEvent {
   confidence: number;
   detectedAt: string;
 }
+
+export type RecommendationCategory = "content" | "earned_media" | "technical";
+export type ImpactLevel = "high" | "medium" | "low";
+export type EffortLevel = "low" | "medium" | "high";
+
+export interface Recommendation {
+  id: UUID;
+  brandId: UUID;
+  sourceGapEventId: UUID;
+  title: string;
+  category: RecommendationCategory;
+  impact: ImpactLevel;
+  effort: EffortLevel;
+  evidence: string;
+  action: string;
+  createdAt: string;
+}
+
+export type SourceType = "reddit" | "publication" | "review" | "video" | "wiki" | "other";
+export type CitedSentiment = "positive" | "neutral" | "negative";
+
+export interface CitedSource {
+  id: UUID;
+  brandId: UUID;
+  domain: string;
+  title: string;
+  citationsThisWeek: number;
+  brandsMentioned: string[];
+  sentiment: CitedSentiment;
+  sourceType: SourceType;
+  createdAt: string;
+}

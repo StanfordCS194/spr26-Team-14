@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { store } from "../db/store";
 import type { ProgressReporter } from "../features/competitive/progress";
 import type { AIAnswer, Brand, ComparativeDelta, PromptRun } from "../features/competitive/types";
 
@@ -38,6 +39,10 @@ function getProviderLabel() {
 function getStreamingClient() {
   if (configuredProvider !== "openai") {
     throw new Error(`Unsupported LLM provider: ${configuredProvider}`);
+  }
+  const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? env;
+  if (runtimeEnv.PERCEPTION_FORCE_MOCK_LLM === "1") {
+    return null;
   }
   if (!openAIClient) {
     return null;
@@ -232,17 +237,20 @@ export async function judgeComparativeOutputs(input: {
   reportProgress?: ProgressReporter;
 }): Promise<ComparativeDelta> {
   if (!getStreamingClient()) {
-    const equalShare = 1 / input.answers.length;
     const shareOfVoiceByBrand: Record<string, number> = {};
     const sentimentByBrand: Record<string, number> = {};
     const praisedFeaturesByBrand: Record<string, string[]> = {};
+    const competitorShare = input.answers.length > 1 ? 0.84 / (input.answers.length - 1) : 1;
 
-    for (const answer of input.answers) {
-      shareOfVoiceByBrand[answer.brandId] = equalShare;
-      sentimentByBrand[answer.brandId] = answer.answerText.includes("strong") ? 0.45 : 0.1;
-      praisedFeaturesByBrand[answer.brandId] = answer.answerText.includes("pricing")
-        ? ["pricing"]
-        : ["onboarding"];
+    for (const [index, answer] of input.answers.entries()) {
+      const isAccountBrand = index === 0;
+      shareOfVoiceByBrand[answer.brandId] = isAccountBrand ? 0.16 : competitorShare;
+      sentimentByBrand[answer.brandId] = isAccountBrand ? 0.12 : 0.42;
+      praisedFeaturesByBrand[answer.brandId] = isAccountBrand
+        ? ["visibility"]
+        : index % 2 === 0
+          ? ["value", "reliability"]
+          : ["innovation", "content_quality"];
     }
 
     return {
@@ -250,12 +258,13 @@ export async function judgeComparativeOutputs(input: {
       shareOfVoiceByBrand,
       sentimentByBrand,
       praisedFeaturesByBrand,
-      evidence: [`Mock judge used because ${configuredProvider.toUpperCase()} is not configured.`],
+      evidence: [`Mock judge used because ${configuredProvider.toUpperCase()} is not configured; competitors expose fix-it gaps.`],
     };
   }
 
   const rawAnswers = input.answers.map((answer) => ({
     brandId: answer.brandId,
+    brandName: store.brands.get(answer.brandId)?.name ?? answer.brandId,
     answerText: answer.answerText,
   }));
 
@@ -266,7 +275,7 @@ export async function judgeComparativeOutputs(input: {
         : "Each answer is an independent brand-specific perception summary for the SAME question. Compare how favorably and how distinctly each brand reads, then score comparatively.",
     promptKind: input.promptRun.promptKind,
     perceptionQuestion: input.promptRun.prompt,
-    brands: rawAnswers.map((a) => ({ brandId: a.brandId })),
+    brands: rawAnswers.map((a) => ({ brandId: a.brandId, brandName: a.brandName })),
     answers: rawAnswers,
     judgingRubric: {
       shareOfVoice:
@@ -276,7 +285,7 @@ export async function judgeComparativeOutputs(input: {
       praisedFeatures:
         "Perceived strengths implied in the text (e.g. leadership, reliability, value, innovation, trust, experience, premium, mainstream). Use lowercase snake_case; omit duplicates.",
       evidence:
-        "Exactly 3 very short strings explaining comparative scoring; each string must be under 18 words and reference brandId. Must be an array of strings, not one paragraph string.",
+        "Exactly 3 very short strings explaining comparative scoring; each string must be under 18 words and reference brand names, not brandIds. Must be an array of strings, not one paragraph string.",
     },
     outputContract: {
       format: "JSON only. No markdown fences.",
@@ -304,6 +313,7 @@ Scoring rules (apply consistently):
 Output requirements:
 - Return a single JSON object with exactly two top-level keys: "evidence" and "mentions".
 - "evidence" MUST be an array of strings (never a single concatenated string).
+- Evidence strings MUST use human-readable brand names, never UUIDs or brandId values.
 - Keep evidence strings short and compact.
 - "mentions" MUST have exactly one entry per provided answer, with matching brandId values.
 - shareOfVoice values must be numbers in [0,1] and must sum to 1.0 across all mentions.

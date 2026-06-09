@@ -1,5 +1,6 @@
 import { store, getNowIso } from "../../db/store";
 import type { GapEvent } from "../competitive/types";
+import { materializeRecommendationsFromGapEvents } from "./recommendations";
 
 export function publishGapEventsToRecommendationInputs(gapEvents: GapEvent[]) {
   const recommendationInputs = gapEvents.map((event) => ({
@@ -20,5 +21,6 @@ export function publishGapEventsToRecommendationInputs(gapEvents: GapEvent[]) {
   }));
 
   store.recommendationInputs.push(...recommendationInputs);
-  return recommendationInputs;
+  const recommendations = materializeRecommendationsFromGapEvents(gapEvents);
+  return { recommendationInputs, recommendations };
 }

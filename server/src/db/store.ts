@@ -2,10 +2,12 @@ import type {
   AIAnswer,
   Brand,
   ComparativeDelta,
+  CitedSource,
   CompetitorSet,
   GapEvent,
   PromptRun,
   PromptSet,
+  Recommendation,
 } from "../features/competitive/types";
 
 const nowIso = () => new Date().toISOString();
@@ -63,6 +65,8 @@ export const store = {
     payload: Record<string, unknown>;
     createdAt: string;
   }>,
+  recommendations: [] as Recommendation[],
+  citedSources: [] as CitedSource[],
 };
 
 export const seedPromptSetId = seededPromptSet.id;
@@ -78,4 +82,6 @@ export function resetStore() {
   store.gapEvents.length = 0;
   store.benchmarkSnapshots.length = 0;
   store.recommendationInputs.length = 0;
+  store.recommendations.length = 0;
+  store.citedSources.length = 0;
 }

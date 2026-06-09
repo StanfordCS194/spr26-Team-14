@@ -11,6 +11,17 @@ export interface MonitoringPrompt {
   createdAt: string;
 }
 
+export interface MonitoringResult {
+  id: string;
+  businessProfileId: string;
+  monitoringPromptId: string;
+  score: number;
+  mentionSentiment: MentionSentiment;
+  answerSummary: string;
+  sources: string[];
+  createdAt: string;
+}
+
 interface PromptRow {
   id: string;
   business_profile_id: string;
@@ -24,12 +35,36 @@ interface StateRow {
   error: string | null;
 }
 
+interface ResultRow {
+  id: string;
+  business_profile_id: string;
+  monitoring_prompt_id: string;
+  score: number;
+  mention_sentiment: MentionSentiment;
+  answer_summary: string;
+  sources_json: string;
+  created_at: string;
+}
+
 function fromRow(row: PromptRow): MonitoringPrompt {
   return {
     id: row.id,
     businessProfileId: row.business_profile_id,
     prompt: row.prompt,
     mentionSentiment: row.mention_sentiment,
+    createdAt: row.created_at,
+  };
+}
+
+function resultFromRow(row: ResultRow): MonitoringResult {
+  return {
+    id: row.id,
+    businessProfileId: row.business_profile_id,
+    monitoringPromptId: row.monitoring_prompt_id,
+    score: row.score,
+    mentionSentiment: row.mention_sentiment,
+    answerSummary: row.answer_summary,
+    sources: JSON.parse(row.sources_json) as string[],
     createdAt: row.created_at,
   };
 }
@@ -67,6 +102,33 @@ const listPrompts = db.query<PromptRow, [string]>(`
   ORDER BY created_at ASC
 `);
 
+const updatePromptSentiment = db.query<null, [MentionSentiment, string]>(`
+  UPDATE monitoring_prompts
+  SET mention_sentiment = ?
+  WHERE id = ?
+`);
+
+const insertResult = db.query<ResultRow, [string, string, string, number, MentionSentiment, string, string, string]>(`
+  INSERT INTO monitoring_results (
+    id, business_profile_id, monitoring_prompt_id, score, mention_sentiment, answer_summary, sources_json, created_at
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  RETURNING id, business_profile_id, monitoring_prompt_id, score, mention_sentiment, answer_summary, sources_json, created_at
+`);
+
+const listResults = db.query<ResultRow, [string]>(`
+  SELECT id, business_profile_id, monitoring_prompt_id, score, mention_sentiment, answer_summary, sources_json, created_at
+  FROM monitoring_results
+  WHERE business_profile_id = ?
+  ORDER BY created_at ASC
+`);
+
+const countResults = db.query<{ count: number }, [string]>(`
+  SELECT COUNT(*) as count
+  FROM monitoring_results
+  WHERE business_profile_id = ?
+`);
+
 function fakeSentiment(index: number): MentionSentiment {
   return (["positive", "neutral", "negative"] as const)[index % 3]!;
 }
@@ -78,6 +140,39 @@ export const monitoringPrompts = {
 
   list(businessProfileId: string) {
     return listPrompts.all(businessProfileId).map(fromRow);
+  },
+
+  addResult(input: {
+    businessProfileId: string;
+    monitoringPromptId: string;
+    score: number;
+    mentionSentiment: MentionSentiment;
+    answerSummary: string;
+    sources: string[];
+    createdAt?: string;
+  }) {
+    const now = input.createdAt ?? new Date().toISOString();
+    updatePromptSentiment.run(input.mentionSentiment, input.monitoringPromptId);
+    return resultFromRow(
+      insertResult.get(
+        crypto.randomUUID(),
+        input.businessProfileId,
+        input.monitoringPromptId,
+        input.score,
+        input.mentionSentiment,
+        input.answerSummary,
+        JSON.stringify(input.sources),
+        now,
+      )!,
+    );
+  },
+
+  results(businessProfileId: string) {
+    return listResults.all(businessProfileId).map(resultFromRow);
+  },
+
+  resultCount(businessProfileId: string) {
+    return countResults.get(businessProfileId)?.count ?? 0;
   },
 
   replaceAll(businessProfileId: string, prompts: string[]) {

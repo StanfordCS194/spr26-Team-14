@@ -58,6 +58,8 @@ describe("competitive routes", () => {
     const runBody = await runRes.json();
     expect(runBody.answerCount).toBe(120);
     expect(runBody.comparisons).toHaveLength(20);
+    expect(runBody.recommendationCount).toBeGreaterThanOrEqual(0);
+    expect(runBody.sourceCount).toBeGreaterThan(0);
 
     const windowEnd = new Date().toISOString();
     const overviewRes = await app.request(

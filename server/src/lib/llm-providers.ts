@@ -128,10 +128,15 @@ const providers: Record<LLMProviderName, LLMProvider> = {
 };
 
 export function configuredLLMProvider(): LLMProviderName {
-  if (env.NODE_ENV === "test") {
+  const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? env;
+  if (
+    runtimeEnv.PERCEPTION_FORCE_MOCK_LLM === "1" ||
+    runtimeEnv.NODE_ENV === "test" ||
+    runtimeEnv.BUN_ENV === "test"
+  ) {
     return "mock";
   }
-  return (env.LLM_PROVIDER as LLMProviderName | undefined) ?? "openai";
+  return (runtimeEnv.LLM_PROVIDER as LLMProviderName | undefined) ?? "openai";
 }
 
 export function isLLMProviderConfigured(provider = configuredLLMProvider()) {

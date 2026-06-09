@@ -8,16 +8,11 @@ import type {
 } from "../src/features/competitive/types";
 
 /**
- * Demo seed: a recognizable streaming-services competitive cohort with 7 days
- * of synthetic benchmark history. Netflix is the account brand vs Disney+,
- * Max, Amazon Prime Video, Apple TV+, and Paramount+. The synthetic story
- * arc: Netflix dominates "leader / best overall" but loses ground on "value"
- * (Amazon Prime bundle) and "innovation" (Apple TV+ originals).
- *
- * Loads brands, a competitor set, prompt runs across the last week, one
- * comparison + a couple of gap events per run. We deliberately skip seeding
- * `AIAnswer` rows: the dashboard reads only prompt runs, comparisons, and
- * gap events.
+ * Demo seed: a recognizable streaming-services competitive cohort. Netflix is
+ * the account brand vs Disney+, Max, Amazon Prime Video, Apple TV+, and
+ * Paramount+. We seed only the inputs; benchmark outputs are produced by the
+ * live run pipeline so share-of-voice, sentiment, gaps, recommendations, and
+ * sources are not synthetic first-paint data.
  */
 
 const ACCOUNT_BRAND_NAME = "Netflix";
@@ -480,47 +475,11 @@ export function loadStreamingSeed(): DemoSeedSummary {
   const competitorBrands = COMPETITOR_NAMES.map((name) => ensureBrand(name));
   ensureCompetitorSet(accountBrand, competitorBrands);
 
-  const brandsByName: Record<string, Brand> = { [accountBrand.name]: accountBrand };
-  for (const brand of competitorBrands) {
-    brandsByName[brand.name] = brand;
-  }
-
-  const now = Date.now();
-  const promptRuns: PromptRun[] = [];
-  const comparisons: ComparativeDelta[] = [];
-
-  for (const scripted of SCRIPTED_COMPARISONS) {
-    const createdAt = new Date(now - scripted.hoursAgo * 60 * 60 * 1000).toISOString();
-    const run: PromptRun = {
-      id: crypto.randomUUID(),
-      promptSetId: seedPromptSetId,
-      prompt: scripted.prompt,
-      promptKind: scripted.promptKind,
-      model: MODEL,
-      createdAt,
-    };
-    store.promptRuns.set(run.id, run);
-    promptRuns.push(run);
-
-    const comparison: ComparativeDelta = {
-      promptRunId: run.id,
-      shareOfVoiceByBrand: remapByBrandId(scripted.shareByName, brandsByName) as Record<string, number>,
-      sentimentByBrand: remapByBrandId(scripted.sentimentByName, brandsByName) as Record<string, number>,
-      praisedFeaturesByBrand: remapByBrandId(scripted.praisedByName, brandsByName) as Record<string, string[]>,
-      evidence: scripted.evidence,
-    };
-    store.comparisons.push(comparison);
-    comparisons.push(comparison);
-  }
-
-  const gapEvents = buildGapEvents(brandsByName, promptRuns);
-  store.gapEvents.push(...gapEvents);
-
   return {
     accountBrandId: accountBrand.id,
     competitorBrandIds: competitorBrands.map((b) => b.id),
-    promptRunCount: promptRuns.length,
-    comparisonCount: comparisons.length,
-    gapEventCount: gapEvents.length,
+    promptRunCount: 0,
+    comparisonCount: 0,
+    gapEventCount: 0,
   };
 }

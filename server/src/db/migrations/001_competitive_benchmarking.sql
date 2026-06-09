@@ -102,3 +102,28 @@ CREATE TABLE IF NOT EXISTS recommendation_inputs (
   payload_json TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS recommendations (
+  id TEXT PRIMARY KEY,
+  brand_id TEXT NOT NULL REFERENCES brands(id),
+  source_gap_event_id TEXT NOT NULL REFERENCES gap_events(id),
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  impact TEXT NOT NULL,
+  effort TEXT NOT NULL,
+  evidence TEXT NOT NULL,
+  action TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cited_sources (
+  id TEXT PRIMARY KEY,
+  brand_id TEXT NOT NULL REFERENCES brands(id),
+  domain TEXT NOT NULL,
+  title TEXT NOT NULL,
+  citations_this_week INTEGER NOT NULL,
+  brands_mentioned_json TEXT NOT NULL,
+  sentiment TEXT NOT NULL,
+  source_type TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

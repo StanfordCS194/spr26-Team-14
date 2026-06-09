@@ -53,6 +53,19 @@ export function runMigrations() {
       PRIMARY KEY (business_profile_id, recommendation_id),
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS monitoring_results (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      monitoring_prompt_id TEXT NOT NULL,
+      score REAL NOT NULL,
+      mention_sentiment TEXT NOT NULL,
+      answer_summary TEXT NOT NULL,
+      sources_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_prompt_id) REFERENCES monitoring_prompts(id) ON DELETE CASCADE
+    );
   `);
 }
 
