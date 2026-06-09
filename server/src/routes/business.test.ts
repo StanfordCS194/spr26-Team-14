@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { expect, test } from "bun:test";
 import { businessProfiles } from "../db/business-profiles";
+import { monitoringRuns } from "../db/monitoring-runs";
 import { store } from "../db/store";
 import { businessRoutes } from "./business";
 
@@ -263,10 +264,109 @@ test("runs monitoring and returns sentiment history", async () => {
 
   const runRes = await app.request(`/business-profiles/${profile.id}/monitoring/runs`, { method: "POST" });
   expect(runRes.status).toBe(200);
-  expect((await runRes.json()).results).toHaveLength(1);
+  const runBody = await runRes.json();
+  expect(runBody.status).toBe("completed");
+  expect(runBody.attempts).toHaveLength(3);
+  expect(new Set(runBody.attempts.map((attempt: { provider: string }) => attempt.provider))).toEqual(
+    new Set(["openai", "anthropic", "gemini"]),
+  );
+  expect(runBody.attempts.every((attempt: { rawResponse: string }) => attempt.rawResponse.includes(profile.name))).toBeTrue();
+  expect(monitoringRuns.attempts(profile.id)).toHaveLength(3);
 
   const monitoringRes = await app.request(`/business-profiles/${profile.id}/monitoring`);
   const monitoringBody = await monitoringRes.json();
-  expect(monitoringBody.history).toHaveLength(1);
+  expect(monitoringBody.history).toHaveLength(3);
+  expect(monitoringBody.summary.totalResponses).toBe(3);
+  expect(monitoringBody.summary.mentionFrequency).toBe(1);
   expect(monitoringBody.prompts[0].mentionSentiment).toBeTruthy();
+});
+
+test("keeps successful monitoring responses when one provider fails", async () => {
+  const profile = businessProfiles.create({
+    name: `PartialRun ${crypto.randomUUID()}`,
+    website: "https://partial-run.test",
+    description: "Partial provider failure profile.",
+  });
+  await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({ prompt: "Which AI visibility platform should a brand use?" }),
+    headers: { "content-type": "application/json" },
+  });
+
+  process.env.PERCEPTION_MOCK_PROVIDER_FAILURES = "anthropic";
+  try {
+    const runRes = await app.request(`/business-profiles/${profile.id}/monitoring/runs`, {
+      method: "POST",
+      body: JSON.stringify({ providers: ["openai", "anthropic", "gemini"] }),
+      headers: { "content-type": "application/json" },
+    });
+    const runBody = await runRes.json();
+    expect(runBody.status).toBe("partial");
+    expect(runBody.attempts.filter((attempt: { status: string }) => attempt.status === "success")).toHaveLength(2);
+    expect(runBody.attempts.find((attempt: { provider: string }) => attempt.provider === "anthropic").error).toContain(
+      "mock failure",
+    );
+
+    const monitoringBody = await (
+      await app.request(`/business-profiles/${profile.id}/monitoring`)
+    ).json();
+    expect(monitoringBody.summary.totalResponses).toBe(2);
+    expect(monitoringBody.summary.providerBreakdown.find(
+      (item: { provider: string }) => item.provider === "anthropic",
+    ).errors).toBe(1);
+  } finally {
+    delete process.env.PERCEPTION_MOCK_PROVIDER_FAILURES;
+  }
+});
+
+test("keeps recommendation feedback isolated for duplicate profile names", async () => {
+  const name = `Duplicate ${crypto.randomUUID()}`;
+  const firstProfile = businessProfiles.create({
+    name,
+    website: "https://first.test",
+    description: "First duplicate-name profile.",
+  });
+  const secondProfile = businessProfiles.create({
+    name,
+    website: "https://second.test",
+    description: "Second duplicate-name profile.",
+  });
+  const firstBrand = { id: crypto.randomUUID(), name };
+  const secondBrand = { id: crypto.randomUUID(), name };
+  store.brands.set(firstBrand.id, firstBrand);
+  store.brands.set(secondBrand.id, secondBrand);
+  store.businessProfileBrandIds.set(firstProfile.id, firstBrand.id);
+  store.businessProfileBrandIds.set(secondProfile.id, secondBrand.id);
+  store.recommendations.push({
+    id: "rec-second-feedback",
+    brandId: secondBrand.id,
+    sourceGapEventId: crypto.randomUUID(),
+    title: "Second profile recommendation",
+    category: "content",
+    impact: "medium",
+    effort: "low",
+    evidence: "Second profile evidence.",
+    action: "Act on the second profile.",
+    createdAt: new Date().toISOString(),
+  });
+
+  const saveRes = await app.request(`/business-profiles/${firstProfile.id}/recommendation-feedback`, {
+    method: "PUT",
+    body: JSON.stringify({ recommendationId: "rec-duplicate", rating: "good" }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(saveRes.status).toBe(200);
+
+  const firstListRes = await app.request(`/business-profiles/${firstProfile.id}/recommendation-feedback`);
+  const secondListRes = await app.request(`/business-profiles/${secondProfile.id}/recommendation-feedback`);
+  expect((await firstListRes.json()).feedback).toHaveLength(1);
+  expect((await secondListRes.json()).feedback).toEqual([]);
+
+  const secondMetricsRes = await app.request(`/business-profiles/${secondProfile.id}/admin/metrics`);
+  expect((await secondMetricsRes.json()).recommendationFeedback).toEqual({
+    total: 0,
+    good: 0,
+    bad: 0,
+    unrated: 1,
+  });
 });

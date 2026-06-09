@@ -122,17 +122,22 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
     if (!prompt) {
       return;
     }
-    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) {
-      setError("Could not add prompt.");
-      return;
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        setError("Could not add prompt.");
+        return;
+      }
+      setNewPrompt("");
+      await load();
+    } catch {
+      setError("Could not add prompt. Check your connection and try again.");
     }
-    setNewPrompt("");
-    await load();
   }
 
   async function runLiveMonitoring() {
@@ -170,6 +175,20 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
       <p className="muted">Monitoring</p>
       <h2>{profile.name}</h2>
       <p>Track the prompts where this business should appear in chatbot answers.</p>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat__label">Stored responses</div>
+          <div className="stat__value">{data.summary.totalResponses}</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Mention frequency</div>
+          <div className="stat__value">{Math.round(data.summary.mentionFrequency * 100)}%</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Recommendations</div>
+          <div className="stat__value">{data.summary.recommendedResponses}</div>
+        </div>
+      </div>
       <SentimentTrend history={data.history} />
       <div className="inline-form">
         <button type="button" onClick={runLiveMonitoring} disabled={running || data.prompts.length === 0}>
@@ -197,6 +216,37 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
           ))}
         </tbody>
       </table>
+
+      <h3>Provider health</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Successful</th>
+            <th>Mentions</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.summary.providerBreakdown.map((item) => (
+            <tr key={item.provider}>
+              <td>{sentimentLabel(item.provider)}</td>
+              <td>{item.successes} / {item.attempts}</td>
+              <td>{item.mentions}</td>
+              <td>{item.errors}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {data.summary.latestAttempts.some((attempt) => attempt.status === "error") && (
+        <div className="error">
+          {data.summary.latestAttempts
+            .filter((attempt) => attempt.status === "error")
+            .map((attempt) => `${sentimentLabel(attempt.provider)}: ${attempt.error}`)
+            .join(" ")}
+        </div>
+      )}
 
       <div className="inline-form">
         <input

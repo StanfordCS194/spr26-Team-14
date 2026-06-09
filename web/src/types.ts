@@ -19,11 +19,47 @@ export interface MonitoringResponse {
   error: string | null;
   prompts: MonitoringPrompt[];
   history: MonitoringHistoryPoint[];
+  summary: MonitoringSummary;
 }
 
 export interface MonitoringHistoryPoint {
   t: string;
   score: number;
+  provider?: MonitoringProvider;
+}
+
+export type MonitoringProvider = "openai" | "anthropic" | "gemini";
+
+export interface MonitoringAttempt {
+  id: string;
+  runId: string;
+  monitoringPromptId: string;
+  provider: MonitoringProvider;
+  model: string;
+  status: "success" | "error";
+  rawResponse: string | null;
+  score: number | null;
+  mentionSentiment: "positive" | "negative" | "neutral" | null;
+  mentionPosition: number | null;
+  recommended: boolean;
+  sources: string[];
+  error: string | null;
+  createdAt: string;
+}
+
+export interface MonitoringSummary {
+  totalResponses: number;
+  mentionFrequency: number;
+  recommendedResponses: number;
+  providerBreakdown: Array<{
+    provider: MonitoringProvider;
+    attempts: number;
+    successes: number;
+    mentions: number;
+    errors: number;
+    averageSentiment: number;
+  }>;
+  latestAttempts: MonitoringAttempt[];
 }
 
 export type RecommendationRating = "good" | "bad";
