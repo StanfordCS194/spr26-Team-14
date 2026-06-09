@@ -1,4 +1,5 @@
 import type { BusinessProfile } from "../../db/business-profiles";
+import { accuracyGuard } from "../../db/accuracy-guard";
 import { monitoringPrompts } from "../../db/monitoring-prompts";
 import {
   monitoringRuns,
@@ -8,6 +9,7 @@ import {
 } from "../../db/monitoring-runs";
 import { parseMonitoringResponse } from "./parse-response";
 import { callMonitoringProvider } from "./providers";
+import { detectInaccuracies } from "../accuracy/detect-inaccuracies";
 
 export const defaultMonitoringProviders: MonitoringProvider[] = ["openai", "anthropic", "gemini"];
 
@@ -21,6 +23,7 @@ export async function runMonitoring(
   }
 
   const runId = monitoringRuns.start(profile.id);
+  const facts = accuracyGuard.facts(profile.id);
   monitoringPrompts.setStatus(profile.id, "generating");
 
   const attempts = await Promise.all(
@@ -57,6 +60,7 @@ export async function runMonitoring(
             answerSummary: response.text.slice(0, 280),
             sources: parsed.sources,
           });
+          detectInaccuracies(attempt, facts);
           return attempt;
         } catch (error) {
           return monitoringRuns.addAttempt({

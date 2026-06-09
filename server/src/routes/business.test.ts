@@ -319,6 +319,84 @@ test("keeps successful monitoring responses when one provider fails", async () =
   }
 });
 
+test("creates deduplicated Accuracy Guard alerts from profile facts", async () => {
+  const profile = businessProfiles.create({
+    name: `Accuracy ${crypto.randomUUID()}`,
+    website: "https://accuracy.test",
+    description: "Accuracy Guard test profile.",
+  });
+  const factRes = await app.request(`/business-profiles/${profile.id}/facts`, {
+    method: "POST",
+    body: JSON.stringify({
+      category: "feature",
+      label: "customer support",
+      value: "24/7 phone support",
+    }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(factRes.status).toBe(201);
+
+  await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({ prompt: "Which platform has reliable customer support?" }),
+    headers: { "content-type": "application/json" },
+  });
+  const runRes = await app.request(`/business-profiles/${profile.id}/monitoring/runs`, {
+    method: "POST",
+    body: JSON.stringify({ providers: ["openai", "anthropic", "gemini"] }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(runRes.status).toBe(200);
+
+  const alertsRes = await app.request(`/business-profiles/${profile.id}/accuracy-alerts`);
+  const alertsBody = await alertsRes.json();
+  expect(alertsBody.alerts).toHaveLength(1);
+  expect(alertsBody.alerts[0].severity).toBe("medium");
+  expect(alertsBody.alerts[0].expectedValue).toBe("24/7 phone support");
+  expect(alertsBody.delivery.inApp).toBeTrue();
+
+  const acknowledgeRes = await app.request(
+    `/business-profiles/${profile.id}/accuracy-alerts/${alertsBody.alerts[0].id}/acknowledge`,
+    { method: "PUT" },
+  );
+  expect(acknowledgeRes.status).toBe(200);
+  expect((await acknowledgeRes.json()).status).toBe("acknowledged");
+});
+
+test("keeps fact sheets isolated between duplicate profile names", async () => {
+  const name = `Fact Duplicate ${crypto.randomUUID()}`;
+  const first = businessProfiles.create({
+    name,
+    website: "https://fact-first.test",
+    description: "First fact profile.",
+  });
+  const second = businessProfiles.create({
+    name,
+    website: "https://fact-second.test",
+    description: "Second fact profile.",
+  });
+  const createFactRes = await app.request(`/business-profiles/${first.id}/facts`, {
+    method: "POST",
+    body: JSON.stringify({ category: "pricing", label: "starting price", value: "$49" }),
+    headers: { "content-type": "application/json" },
+  });
+  const fact = await createFactRes.json();
+
+  expect((await (await app.request(`/business-profiles/${first.id}/facts`)).json()).facts).toHaveLength(1);
+  expect((await (await app.request(`/business-profiles/${second.id}/facts`)).json()).facts).toEqual([]);
+
+  const updateRes = await app.request(`/business-profiles/${first.id}/facts/${fact.id}`, {
+    method: "PUT",
+    body: JSON.stringify({ category: "pricing", label: "starting price", value: "$59", active: false }),
+    headers: { "content-type": "application/json" },
+  });
+  expect((await updateRes.json()).active).toBeFalse();
+
+  const deleteRes = await app.request(`/business-profiles/${first.id}/facts/${fact.id}`, { method: "DELETE" });
+  expect(deleteRes.status).toBe(204);
+  expect((await (await app.request(`/business-profiles/${first.id}/facts`)).json()).facts).toEqual([]);
+});
+
 test("keeps recommendation feedback isolated for duplicate profile names", async () => {
   const name = `Duplicate ${crypto.randomUUID()}`;
   const firstProfile = businessProfiles.create({

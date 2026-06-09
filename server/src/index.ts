@@ -33,7 +33,7 @@ app.use(
       "http://localhost:5175",
       "http://127.0.0.1:5175",
     ],
-    allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }),
 );
 
