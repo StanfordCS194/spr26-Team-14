@@ -139,6 +139,36 @@ export function runMigrations() {
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
       FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS brand_facts (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      category TEXT NOT NULL,
+      label TEXT NOT NULL,
+      value TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS accuracy_alerts (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      monitoring_attempt_id TEXT NOT NULL,
+      brand_fact_id TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      status TEXT NOT NULL,
+      observed_claim TEXT NOT NULL,
+      expected_value TEXT NOT NULL,
+      explanation TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (monitoring_attempt_id, brand_fact_id),
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE,
+      FOREIGN KEY (brand_fact_id) REFERENCES brand_facts(id) ON DELETE CASCADE
+    );
   `);
 }
 

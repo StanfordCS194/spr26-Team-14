@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { accuracyGuard } from "../db/accuracy-guard";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
 import { profileRecommendations } from "../db/profile-recommendations";
@@ -84,6 +85,16 @@ const recommendationStatusSchema = z.object({
   status: z.enum(["proposed", "planned", "in_progress", "completed", "dismissed"]),
 });
 
+const factSchema = z.object({
+  category: z.enum(["pricing", "feature", "executive", "company", "custom"]),
+  label: z.string().trim().min(2),
+  value: z.string().trim().min(1),
+});
+
+const factUpdateSchema = factSchema.extend({
+  active: z.boolean(),
+});
+
 businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
   const id = c.req.param("id");
   if (!businessProfiles.get(id)) {
@@ -128,6 +139,64 @@ businessRoutes.post("/business-profiles/:id/monitoring-prompts", async (c) => {
   }
   const body = promptSchema.parse(await c.req.json());
   return c.json(monitoringPrompts.add(id, body.prompt), 201);
+});
+
+businessRoutes.get("/business-profiles/:id/facts", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  return c.json({ facts: accuracyGuard.facts(id) });
+});
+
+businessRoutes.post("/business-profiles/:id/facts", async (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  return c.json(accuracyGuard.createFact(id, factSchema.parse(await c.req.json())), 201);
+});
+
+businessRoutes.put("/business-profiles/:id/facts/:factId", async (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const fact = accuracyGuard.updateFact(id, c.req.param("factId"), factUpdateSchema.parse(await c.req.json()));
+  return fact ? c.json(fact) : c.json({ error: "Fact not found." }, 404);
+});
+
+businessRoutes.delete("/business-profiles/:id/facts/:factId", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  accuracyGuard.deleteFact(id, c.req.param("factId"));
+  return c.body(null, 204);
+});
+
+businessRoutes.get("/business-profiles/:id/accuracy-alerts", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  return c.json({
+    alerts: accuracyGuard.alerts(id),
+    delivery: {
+      inApp: true,
+      emailConfigured: Boolean(process.env.ACCURACY_ALERT_EMAIL_WEBHOOK),
+      slackConfigured: Boolean(process.env.ACCURACY_ALERT_SLACK_WEBHOOK),
+    },
+  });
+});
+
+businessRoutes.put("/business-profiles/:id/accuracy-alerts/:alertId/acknowledge", (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const alert = accuracyGuard.acknowledge(id, c.req.param("alertId"));
+  return alert ? c.json(alert) : c.json({ error: "Open alert not found." }, 404);
 });
 
 businessRoutes.get("/business-profiles/:id/recommendation-feedback", (c) => {
