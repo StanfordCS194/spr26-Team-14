@@ -37,6 +37,33 @@ const env = (globalThis as { process?: { env?: Record<string, string | undefined
 const openAIClient = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 const STREAM_FLUSH_CHARS = 140;
 
+function outputTextWithCitations(response: {
+  output?: Array<{ type?: string; content?: Array<{
+    type?: string;
+    text?: string;
+    annotations?: Array<{ type?: string; end_index?: number; url?: string }>;
+  }> }>;
+  output_text?: string;
+}) {
+  const parts = response.output?.flatMap((item) => item.type === "message" ? item.content ?? [] : []) ?? [];
+  const annotated = parts.flatMap((part) => {
+    if (part.type !== "output_text" || !part.text) return [];
+    let text = part.text;
+    const citations = (part.annotations ?? [])
+      .filter((annotation) =>
+        annotation.type === "url_citation" &&
+        typeof annotation.end_index === "number" &&
+        Boolean(annotation.url)
+      )
+      .sort((a, b) => b.end_index! - a.end_index!);
+    for (const citation of citations) {
+      text = `${text.slice(0, citation.end_index)} [${citation.url}]${text.slice(citation.end_index)}`;
+    }
+    return [text];
+  });
+  return annotated.join("\n").trim() || response.output_text || "";
+}
+
 function flush(buffer: string, onDelta?: (text: string) => void) {
   const text = buffer.trim();
   if (text) {
@@ -103,9 +130,7 @@ const providers: Record<LLMProviderName, LLMProvider> = {
       flush(buffer, input.onDelta);
       input.onCompleted?.();
 
-      return typeof response.output_text === "string" && response.output_text.trim()
-        ? response.output_text
-        : fullText;
+      return outputTextWithCitations(response) || fullText;
     },
     async structured(input) {
       if (!openAIClient) {
@@ -113,16 +138,22 @@ const providers: Record<LLMProviderName, LLMProvider> = {
       }
 
       input.onStarted?.();
-      const response = await openAIClient.responses.parse({
-        model: input.model ?? "gpt-4.1-mini",
-        input: input.messages ?? [{ role: "user", content: input.prompt }],
-        text: {
-          format: zodTextFormat(input.schema, input.schemaName),
-        },
-        tools: input.useSearch ? [{ type: "web_search" }] : undefined,
-      } as Parameters<typeof openAIClient.responses.parse>[0]);
-      input.onCompleted?.();
-      return input.schema.parse(response.output_parsed);
+      try {
+        const response = await openAIClient.responses.parse({
+          model: input.model ?? "gpt-4.1-mini",
+          max_output_tokens: input.maxOutputTokens,
+          input: input.messages ?? [{ role: "user", content: input.prompt }],
+          text: {
+            format: zodTextFormat(input.schema, input.schemaName),
+          },
+          tools: input.useSearch ? [{ type: "web_search" }] : undefined,
+        } as Parameters<typeof openAIClient.responses.parse>[0]);
+        input.onCompleted?.();
+        return input.schema.parse(response.output_parsed);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown structured LLM error.";
+        throw new Error(`Structured LLM call failed for ${input.schemaName}: ${message}`);
+      }
     },
   },
 };

@@ -34,6 +34,7 @@ export async function refreshSourcesForBrand(input: {
 }) {
   const result = await callStructuredLLM({
     model: "gpt-4.1-mini",
+    maxOutputTokens: 5000,
     schema: sourceSchema,
     schemaName: "cited_source_list",
     useSearch: true,

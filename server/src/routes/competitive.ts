@@ -15,6 +15,7 @@ import { isLLMProviderConfigured } from "../lib/llm-providers";
 const competitorSetSchema = z.object({
   accountBrandName: z.string().min(1),
   competitorNames: z.array(z.string().min(1)).length(5),
+  businessProfileId: z.string().min(1).optional(),
 });
 
 const competitiveRunSchema = z.object({
@@ -34,6 +35,24 @@ function ensureBrand(name: string) {
   }
   const brand = { id: crypto.randomUUID(), name };
   store.brands.set(brand.id, brand);
+  return brand;
+}
+
+function ensureAccountBrand(name: string, businessProfileId?: string) {
+  if (!businessProfileId) {
+    return ensureBrand(name);
+  }
+
+  const existingId = store.businessProfileBrandIds.get(businessProfileId);
+  const existing = existingId ? store.brands.get(existingId) : null;
+  if (existing) {
+    existing.name = name;
+    return existing;
+  }
+
+  const brand = { id: crypto.randomUUID(), name };
+  store.brands.set(brand.id, brand);
+  store.businessProfileBrandIds.set(businessProfileId, brand.id);
   return brand;
 }
 
@@ -78,7 +97,7 @@ competitiveRoutes.get("/competitive/stream/:sessionId", (c) => {
 
 competitiveRoutes.post("/competitive-sets", async (c) => {
   const body = competitorSetSchema.parse(await c.req.json());
-  const accountBrand = ensureBrand(body.accountBrandName);
+  const accountBrand = ensureAccountBrand(body.accountBrandName, body.businessProfileId);
   const competitors = body.competitorNames.map(ensureBrand);
   const competitorSet = {
     id: crypto.randomUUID(),
@@ -146,7 +165,7 @@ competitiveRoutes.post("/competitive/runs", async (c) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Benchmark run failed.";
     reportProgress?.({ type: "run_failed", message });
-    throw error;
+    return c.json({ error: message }, 500);
   }
 });
 

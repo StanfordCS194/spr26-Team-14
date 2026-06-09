@@ -10,8 +10,18 @@ export interface MonitoringPrompt {
   id: string;
   businessProfileId: string;
   prompt: string;
+  category: "comparison" | "recommendation" | "feature" | "pricing" | "custom";
+  cadence: "daily" | "weekly";
+  active: boolean;
   mentionSentiment: "positive" | "negative" | "neutral";
   createdAt: string;
+}
+
+export interface BusinessProfileInput {
+  name: string;
+  website: string;
+  description: string;
+  competitorNames: string[];
 }
 
 export interface MonitoringResponse {
@@ -19,11 +29,75 @@ export interface MonitoringResponse {
   error: string | null;
   prompts: MonitoringPrompt[];
   history: MonitoringHistoryPoint[];
+  summary: MonitoringSummary;
 }
 
 export interface MonitoringHistoryPoint {
   t: string;
   score: number;
+  provider?: MonitoringProvider;
+}
+
+export type MonitoringProvider = "openai" | "anthropic" | "gemini";
+
+export interface MonitoringAttempt {
+  id: string;
+  runId: string;
+  monitoringPromptId: string;
+  provider: MonitoringProvider;
+  model: string;
+  status: "success" | "error";
+  rawResponse: string | null;
+  score: number | null;
+  mentionSentiment: "positive" | "negative" | "neutral" | null;
+  mentionPosition: number | null;
+  recommended: boolean;
+  sources: string[];
+  error: string | null;
+  createdAt: string;
+}
+
+export interface MonitoringSummary {
+  totalResponses: number;
+  mentionFrequency: number;
+  recommendedResponses: number;
+  providerBreakdown: Array<{
+    provider: MonitoringProvider;
+    attempts: number;
+    successes: number;
+    mentions: number;
+    errors: number;
+    averageSentiment: number;
+  }>;
+  latestAttempts: MonitoringAttempt[];
+}
+
+export interface AccuracyAlert {
+  id: string;
+  businessProfileId: string;
+  monitoringAttemptId: string;
+  provider: MonitoringProvider;
+  severity: "high" | "medium" | "low";
+  status: "open" | "acknowledged";
+  claimText: string;
+  explanation: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccuracySummary {
+  responsesChecked: number;
+  totalClaims: number;
+  citedClaims: number;
+  citationCoverage: number;
+}
+
+export interface CitationProviderSummary {
+  provider: MonitoringProvider;
+  responsesChecked: number;
+  totalClaims: number;
+  citedClaims: number;
+  citationCoverage: number | null;
 }
 
 export type RecommendationRating = "good" | "bad";
@@ -49,6 +123,7 @@ export interface AdminMetricsResponse {
 export type RecommendationCategory = "content" | "earned_media" | "technical";
 export type ImpactLevel = "high" | "medium" | "low";
 export type EffortLevel = "low" | "medium" | "high";
+export type RecommendationStatus = "proposed" | "planned" | "in_progress" | "completed" | "dismissed";
 
 export interface Recommendation {
   id: string;
@@ -60,6 +135,15 @@ export interface Recommendation {
   effort: EffortLevel;
   evidence: string;
   action: string;
+  targetProvider: string | null;
+  status: RecommendationStatus;
+  startedAt: string | null;
+  completedAt: string | null;
+  lift: {
+    beforeScore: number | null;
+    afterScore: number | null;
+    delta: number | null;
+  };
   createdAt: string;
 }
 
@@ -80,6 +164,10 @@ export interface CitedSource {
   brandsMentioned: string[];
   sentiment: CitedSentiment;
   sourceType: SourceType;
+  url: string;
+  providers: MonitoringProvider[];
+  monitoringPromptIds: string[];
+  relatedRecommendationIds: string[];
   createdAt: string;
 }
 

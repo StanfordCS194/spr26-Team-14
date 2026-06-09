@@ -161,7 +161,32 @@ export async function generateBrandAnswer(input: {
 
   if (!getStreamingClient()) {
     const kind = input.promptRun.promptKind;
-    return `Mock perception summary for ${input.brand.name} (${kind}). "${questionText.slice(0, 90)}..."`;
+    const text = `Mock perception summary for ${input.brand.name} (${kind}). "${questionText.slice(0, 90)}..."`;
+    input.reportProgress?.({
+      type: "answer_started",
+      brandId: input.brand.id,
+      brandName: input.brand.name,
+      prompt: questionText,
+      promptKind: kind,
+      message: "Started brand summary.",
+    });
+    input.reportProgress?.({
+      type: "answer_delta",
+      brandId: input.brand.id,
+      brandName: input.brand.name,
+      prompt: questionText,
+      promptKind: kind,
+      text,
+    });
+    input.reportProgress?.({
+      type: "answer_completed",
+      brandId: input.brand.id,
+      brandName: input.brand.name,
+      prompt: questionText,
+      promptKind: kind,
+      message: "Completed brand summary.",
+    });
+    return text;
   }
 
   const system =
@@ -237,6 +262,12 @@ export async function judgeComparativeOutputs(input: {
   reportProgress?: ProgressReporter;
 }): Promise<ComparativeDelta> {
   if (!getStreamingClient()) {
+    input.reportProgress?.({
+      type: "judge_started",
+      prompt: input.promptRun.prompt,
+      promptKind: input.promptRun.promptKind,
+      message: "Started comparative judging.",
+    });
     const shareOfVoiceByBrand: Record<string, number> = {};
     const sentimentByBrand: Record<string, number> = {};
     const praisedFeaturesByBrand: Record<string, string[]> = {};
@@ -253,13 +284,26 @@ export async function judgeComparativeOutputs(input: {
           : ["innovation", "content_quality"];
     }
 
-    return {
+    const result = {
       promptRunId: input.promptRun.id,
       shareOfVoiceByBrand,
       sentimentByBrand,
       praisedFeaturesByBrand,
       evidence: [`Mock judge used because ${configuredProvider.toUpperCase()} is not configured; competitors expose fix-it gaps.`],
     };
+    input.reportProgress?.({
+      type: "judge_delta",
+      prompt: input.promptRun.prompt,
+      promptKind: input.promptRun.promptKind,
+      text: result.evidence[0]!,
+    });
+    input.reportProgress?.({
+      type: "judge_completed",
+      prompt: input.promptRun.prompt,
+      promptKind: input.promptRun.promptKind,
+      message: "Completed comparative judging.",
+    });
+    return result;
   }
 
   const rawAnswers = input.answers.map((answer) => ({

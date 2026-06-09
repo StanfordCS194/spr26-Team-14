@@ -25,6 +25,37 @@ describe("competitive routes", () => {
     expect(body.competitorBrandIds).toHaveLength(5);
   });
 
+  test("links duplicate account names to distinct business profiles", async () => {
+    const firstProfileId = crypto.randomUUID();
+    const secondProfileId = crypto.randomUUID();
+    const competitorNames = ["A", "B", "C", "D", "E"];
+
+    const firstResponse = await app.request("/competitive-sets", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        accountBrandName: "Shared Name",
+        businessProfileId: firstProfileId,
+        competitorNames,
+      }),
+    });
+    const secondResponse = await app.request("/competitive-sets", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        accountBrandName: "Shared Name",
+        businessProfileId: secondProfileId,
+        competitorNames,
+      }),
+    });
+
+    expect(firstResponse.status).toBe(201);
+    expect(secondResponse.status).toBe(201);
+    const firstBody = await firstResponse.json();
+    const secondBody = await secondResponse.json();
+    expect(firstBody.accountBrandId).not.toBe(secondBody.accountBrandId);
+  });
+
   test("returns 400 if overview params missing", async () => {
     const response = await app.request("/competitive/overview");
     expect(response.status).toBe(400);

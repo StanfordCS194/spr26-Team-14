@@ -16,8 +16,19 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
   const padBottom = 32;
   const chartHeight = height - padTop - padBottom;
   const yForScore = (score: number) => padTop + ((1 - score) / 2) * chartHeight;
-  const points = history.map((item, index) => {
-    const x = padX + (index * (width - padX * 2)) / Math.max(history.length - 1, 1);
+  const dailyHistory = Object.values(history.reduce<Record<string, { t: string; total: number; count: number }>>(
+    (days, item) => {
+      const date = new Date(item.t).toLocaleDateString();
+      const current = days[date] ?? { t: item.t, total: 0, count: 0 };
+      days[date] = { t: item.t, total: current.total + item.score, count: current.count + 1 };
+      return days;
+    },
+    {},
+  )).map((day) => ({ t: day.t, score: day.total / day.count }));
+  const points = dailyHistory.map((item, index) => {
+    const x = dailyHistory.length === 1
+      ? width / 2
+      : padX + (index * (width - padX * 2)) / (dailyHistory.length - 1);
     const y = yForScore(item.score);
     return {
       date: new Date(item.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
@@ -36,7 +47,7 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
       <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
         {points.map((point) => (
           <line
-            key={`grid-${point.date}`}
+            key={`grid-${point.date}-${point.x}`}
             className="grid-line"
             x1={point.x}
             x2={point.x}
@@ -60,7 +71,7 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
           const positive = (point.score + next.score) / 2 >= 0;
           return (
             <line
-              key={point.date}
+              key={`${point.date}-${point.x}`}
               className={positive ? "trend-line trend-positive" : "trend-line trend-negative"}
               x1={point.x}
               x2={next.x}
@@ -70,7 +81,7 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
           );
         })}
         {points.map((point) => (
-          <g key={point.date}>
+          <g key={`${point.date}-${point.x}`}>
             <circle className={point.score >= 0 ? "trend-dot trend-dot-positive" : "trend-dot trend-dot-negative"} cx={point.x} cy={point.y} r="5" />
             <text className="chart-label" x={point.x} y={height - 4} textAnchor="middle">
               {point.date}
@@ -90,6 +101,8 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
 export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
   const [data, setData] = useState<MonitoringResponse | null>(null);
   const [newPrompt, setNewPrompt] = useState("");
+  const [newCategory, setNewCategory] = useState<MonitoringResponse["prompts"][number]["category"]>("custom");
+  const [newCadence, setNewCadence] = useState<MonitoringResponse["prompts"][number]["cadence"]>("daily");
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
 
@@ -122,35 +135,48 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
     if (!prompt) {
       return;
     }
-    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) {
-      setError("Could not add prompt.");
-      return;
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt, category: newCategory, cadence: newCadence, active: true }),
+      });
+      if (!res.ok) {
+        setError("Could not add prompt.");
+        return;
+      }
+      setNewPrompt("");
+      await load();
+    } catch {
+      setError("Could not add prompt. Check your connection and try again.");
     }
-    setNewPrompt("");
-    await load();
+  }
+
+  async function togglePrompt(item: MonitoringResponse["prompts"][number]) {
+    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts/${item.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...item, active: !item.active }),
+    });
+    if (res.ok) await load();
   }
 
   async function runLiveMonitoring() {
     setRunning(true);
     setError("");
-    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring/runs`, {
-      method: "POST",
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.error ?? "Could not run live monitoring.");
-      setRunning(false);
-      return;
-    }
     try {
+      const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring/runs`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Could not run live monitoring.");
+        return;
+      }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load monitoring prompts.");
+      setError(err instanceof Error ? err.message : "Could not run live monitoring.");
     } finally {
       setRunning(false);
     }
@@ -171,6 +197,20 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
       <p className="muted">Monitoring</p>
       <h2>{profile.name}</h2>
       <p>Track the prompts where this business should appear in chatbot answers.</p>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat__label">Stored responses</div>
+          <div className="stat__value">{data.summary.totalResponses}</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Mention frequency</div>
+          <div className="stat__value">{Math.round(data.summary.mentionFrequency * 100)}%</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Recommended responses</div>
+          <div className="stat__value">{data.summary.recommendedResponses}</div>
+        </div>
+      </div>
       <SentimentTrend history={data.history} />
       <div className="inline-form">
         <button type="button" onClick={runLiveMonitoring} disabled={running || data.prompts.length === 0}>
@@ -182,22 +222,59 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
         <thead>
           <tr>
             <th>Prompt</th>
+            <th>Category</th>
+            <th>Cadence</th>
             <th>Mention</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {data.prompts.map((item) => (
             <tr key={item.id}>
               <td>{item.prompt}</td>
+              <td>{item.category}</td>
+              <td>{item.cadence}</td>
               <td>
                 <span className={`sentiment sentiment-${item.mentionSentiment}`}>
                   {sentimentLabel(item.mentionSentiment)}
                 </span>
               </td>
+              <td><button type="button" onClick={() => togglePrompt(item)}>{item.active ? "Active" : "Paused"}</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <h3>Provider health</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Successful</th>
+            <th>Mentions</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.summary.providerBreakdown.map((item) => (
+            <tr key={item.provider}>
+              <td>{sentimentLabel(item.provider)}</td>
+              <td>{item.successes} / {item.attempts}</td>
+              <td>{item.mentions}</td>
+              <td>{item.errors}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {data.summary.latestAttempts.some((attempt) => attempt.status === "error") && (
+        <div className="error">
+          {data.summary.latestAttempts
+            .filter((attempt) => attempt.status === "error")
+            .map((attempt) => `${sentimentLabel(attempt.provider)}: ${attempt.error}`)
+            .join(" ")}
+        </div>
+      )}
 
       <div className="inline-form">
         <input
@@ -205,6 +282,17 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
           value={newPrompt}
           onChange={(event) => setNewPrompt(event.target.value)}
         />
+        <select value={newCategory} onChange={(event) => setNewCategory(event.target.value as typeof newCategory)}>
+          <option value="comparison">Comparison</option>
+          <option value="recommendation">Recommendation</option>
+          <option value="feature">Feature</option>
+          <option value="pricing">Pricing</option>
+          <option value="custom">Custom</option>
+        </select>
+        <select value={newCadence} onChange={(event) => setNewCadence(event.target.value as typeof newCadence)}>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
         <button type="button" onClick={addPrompt} disabled={!newPrompt.trim()}>
           Add prompt
         </button>
