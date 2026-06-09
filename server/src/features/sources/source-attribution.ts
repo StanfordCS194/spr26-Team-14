@@ -1,6 +1,6 @@
 import type { BusinessProfile } from "../../db/business-profiles";
 import { businessProfiles } from "../../db/business-profiles";
-import type { MonitoringAttempt, MonitoringProvider } from "../../db/monitoring-runs";
+import { monitoringRuns, type MonitoringAttempt, type MonitoringProvider } from "../../db/monitoring-runs";
 import { profileRecommendations } from "../../db/profile-recommendations";
 import { sourceCitations, type SourceType } from "../../db/source-citations";
 
@@ -25,10 +25,15 @@ function sourceType(domain: string): SourceType {
   return domain ? "publication" : "other";
 }
 
+function mentionsBrand(text: string, brand: string) {
+  const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(text);
+}
+
 export function recordAttemptSources(profile: BusinessProfile, attempt: MonitoringAttempt) {
   if (attempt.status !== "success" || !attempt.mentionSentiment) return [];
   const brands = [profile.name, ...businessProfiles.competitors(profile.id)].filter(
-    (brand) => attempt.rawResponse?.toLowerCase().includes(brand.toLowerCase()),
+    (brand) => mentionsBrand(attempt.rawResponse ?? "", brand),
   );
   return attempt.sources.flatMap((value) => {
     try {
@@ -62,6 +67,9 @@ export function aggregateSources(
     windowDays?: number;
   } = {},
 ) {
+  for (const attempt of monitoringRuns.attempts(profile.id)) {
+    if (attempt.sources.length > 0) recordAttemptSources(profile, attempt);
+  }
   const windowStart = Date.now() - (filters.windowDays ?? 7) * 24 * 60 * 60 * 1000;
   const citations = sourceCitations.list(profile.id).filter(
     (citation) =>
@@ -82,11 +90,9 @@ export function aggregateSources(
     const first = grouped[0]!;
     const providers = [...new Set(grouped.map((citation) => citation.provider))];
     const brandsMentioned = [...new Set(grouped.flatMap((citation) => citation.brandsMentioned))];
+    const attemptIds = new Set(grouped.map((citation) => citation.monitoringAttemptId));
     const relatedRecommendationIds = recommendations
-      .filter((recommendation) =>
-        recommendation.category === "earned_media" ||
-        (recommendation.targetProvider && providers.includes(recommendation.targetProvider as MonitoringProvider))
-      )
+      .filter((recommendation) => attemptIds.has(recommendation.sourceAttemptId))
       .map((recommendation) => recommendation.id);
     return {
       id: canonicalUrl,

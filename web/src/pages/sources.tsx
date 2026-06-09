@@ -102,18 +102,18 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
         </select>
       </div>
 
-      <div className="sources-stat-row">
-        <div className="sources-stat">
-          <div className="sources-stat__label">Citations / week</div>
-          <div className="sources-stat__value">{totalCitations}</div>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat__label">Citations / week</div>
+          <div className="stat__value">{totalCitations}</div>
         </div>
-        <div className="sources-stat">
-          <div className="sources-stat__label">Reddit</div>
-          <div className="sources-stat__value">{reddit}</div>
+        <div className="stat">
+          <div className="stat__label">Reddit</div>
+          <div className="stat__value">{reddit}</div>
         </div>
-        <div className="sources-stat">
-          <div className="sources-stat__label">News & reviews</div>
-          <div className="sources-stat__value">{newsAndReviews}</div>
+        <div className="stat">
+          <div className="stat__label">News & reviews</div>
+          <div className="stat__value">{newsAndReviews}</div>
         </div>
       </div>
 
