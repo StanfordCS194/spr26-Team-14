@@ -33,7 +33,7 @@ app.use(
       "http://localhost:5175",
       "http://127.0.0.1:5175",
     ],
-    allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }),
 );
 
@@ -44,5 +44,6 @@ app.route("/", llmStatusRoutes);
 
 export default {
   port: Number(process.env.PORT ?? 3000),
+  idleTimeout: Number(process.env.PERCEPTION_SERVER_IDLE_TIMEOUT ?? 255),
   fetch: app.fetch,
 };
