@@ -1,4 +1,4 @@
-import type { BusinessProfile } from "../../db/business-profiles";
+import { businessProfiles, type BusinessProfile } from "../../db/business-profiles";
 import { monitoringPrompts } from "../../db/monitoring-prompts";
 import {
   monitoringRuns,
@@ -16,6 +16,7 @@ export async function runMonitoring(
   providers: MonitoringProvider[] = defaultMonitoringProviders,
 ) {
   const prompts = monitoringPrompts.list(profile.id);
+  const competitorNames = businessProfiles.competitors(profile.id);
   if (prompts.length === 0) {
     return { runId: null, status: "completed" as const, attempts: [] };
   }
@@ -31,6 +32,7 @@ export async function runMonitoring(
             provider,
             prompt: prompt.prompt,
             brandName: profile.name,
+            competitorNames,
           });
           const parsed = parseMonitoringResponse(profile.name, response.text);
           const attempt = monitoringRuns.addAttempt({

@@ -18,15 +18,21 @@ export function monitoringProviderConfigured(provider: MonitoringProvider) {
   return Boolean(runtimeEnv().GEMINI_API_KEY);
 }
 
-function mockAnswer(provider: MonitoringProvider, brandName: string, prompt: string) {
+function mockAnswer(provider: MonitoringProvider, brandName: string, prompt: string, competitorNames: string[]) {
+  if (competitorNames.length > 0 && provider === "anthropic") {
+    return `${competitorNames[0]} is the recommended option for "${prompt}" because of reliable features and good customer support. ` +
+      `Source: https://example.com/${provider}`;
+  }
+  const comparison = competitorNames[0] ? ` compared with ${competitorNames[0]}` : "";
   return `${providerModels[provider]} says ${brandName} is a recommended option for "${prompt}". ` +
-    `${brandName} is known for reliable features and good customer support. Source: https://example.com/${provider}`;
+    `${brandName} is known for reliable features and good customer support${comparison}. Source: https://example.com/${provider}`;
 }
 
 export async function callMonitoringProvider(input: {
   provider: MonitoringProvider;
   prompt: string;
   brandName: string;
+  competitorNames?: string[];
 }) {
   const configuredModels: Record<MonitoringProvider, string | undefined> = {
     openai: runtimeEnv().OPENAI_MONITORING_MODEL,
@@ -40,14 +46,17 @@ export async function callMonitoringProvider(input: {
     if (failedProviders.includes(input.provider)) {
       throw new Error(`${input.provider} mock failure.`);
     }
-    return { model, text: mockAnswer(input.provider, input.brandName, input.prompt) };
+    return { model, text: mockAnswer(input.provider, input.brandName, input.prompt, input.competitorNames ?? []) };
   }
 
   if (!monitoringProviderConfigured(input.provider)) {
     throw new Error(`${input.provider} is not configured.`);
   }
 
-  const prompt = `Answer this consumer question naturally. Include citations as URLs when available.\n\n${input.prompt}`;
+  const competitiveContext = input.competitorNames?.length
+    ? `\nRelevant brands may include ${[input.brandName, ...input.competitorNames].join(", ")}.`
+    : "";
+  const prompt = `Answer this consumer question naturally. Include citations as URLs when available.${competitiveContext}\n\n${input.prompt}`;
   if (input.provider === "openai") {
     return { model, text: await callLLM({ provider: "openai", model, prompt, useSearch: true }) };
   }

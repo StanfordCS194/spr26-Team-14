@@ -76,7 +76,10 @@ export function CompetitivePage({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/competitive/snapshot?windowDays=7`)
+    const snapshotUrl = businessProfileId
+      ? `${API_BASE}/business-profiles/${businessProfileId}/competitive-monitoring?windowDays=7`
+      : `${API_BASE}/competitive/snapshot?windowDays=7`;
+    fetch(snapshotUrl)
       .then((res) => (res.ok ? (res.json() as Promise<SnapshotResponse>) : null))
       .then((snap) => {
         if (!snap || cancelled || !snap.hasData) return;
@@ -97,7 +100,7 @@ export function CompetitivePage({
       progressSourceRef.current?.close();
       progressSourceRef.current = null;
     };
-  }, []);
+  }, [businessProfileId]);
 
   useEffect(() => {
     setAccountBrandName(businessName ?? "Sephora");
@@ -218,6 +221,37 @@ export function CompetitivePage({
       const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const windowEndAfterRun = () => new Date().toISOString();
       await saveCompetitors(input.competitorNames);
+
+      if (businessProfileId) {
+        setProgressStatus("Running saved prompts across OpenAI, Claude, and Gemini...");
+        const runRes = await fetch(`${API_BASE}/business-profiles/${businessProfileId}/monitoring/runs`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ providers: ["openai", "anthropic", "gemini"] }),
+        });
+        if (!runRes.ok) {
+          const body = await runRes.json().catch(() => ({}));
+          throw new Error(body.error ?? `Monitoring run failed: ${runRes.status}`);
+        }
+
+        const snapshotRes = await fetch(
+          `${API_BASE}/business-profiles/${businessProfileId}/competitive-monitoring?windowDays=7`,
+        );
+        if (!snapshotRes.ok) {
+          throw new Error(`Persisted benchmark failed: ${snapshotRes.status}`);
+        }
+        const snapshot = await snapshotRes.json() as SnapshotResponse;
+        setOverview(snapshot.overview);
+        setTrends(snapshot.trends);
+        setGaps(snapshot.gaps);
+        setBrandLabels(snapshot.brandLabels);
+        setAccountBrandId(snapshot.accountBrandId ?? "");
+        setAccountBrandName(snapshot.accountBrandName ?? input.accountBrandName);
+        setCompetitorBrandIds(snapshot.competitorBrandIds ?? []);
+        setLastWindow({ windowStart: snapshot.timeframe.start, windowEnd: snapshot.timeframe.end });
+        setProgressStatus("Benchmark completed from persisted monitoring evidence.");
+        return;
+      }
 
       const setRes = await fetch(`${API_BASE}/competitive-sets`, {
         method: "POST",

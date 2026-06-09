@@ -5,6 +5,7 @@ import { monitoringPrompts } from "../db/monitoring-prompts";
 import { recommendationFeedback } from "../db/recommendation-feedback";
 import { store } from "../db/store";
 import { sourcesForBrand } from "../features/competitive/sources.service";
+import { buildMonitoringBenchmark } from "../features/competitive/monitoring-benchmark";
 import { recommendationsForBrand } from "../features/fixit/recommendations";
 import {
   defaultMonitoringProviders,
@@ -55,6 +56,15 @@ businessRoutes.get("/business-profiles/:id/competitors", (c) => {
     return c.json({ error: "Business profile not found." }, 404);
   }
   return c.json({ competitorNames: businessProfiles.competitors(c.req.param("id")) });
+});
+
+businessRoutes.get("/business-profiles/:id/competitive-monitoring", (c) => {
+  const profile = businessProfiles.get(c.req.param("id"));
+  if (!profile) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const windowDays = Math.max(1, Math.min(90, Number(c.req.query("windowDays") ?? 7)));
+  return c.json(buildMonitoringBenchmark(profile, Number.isFinite(windowDays) ? windowDays : 7));
 });
 
 businessRoutes.put("/business-profiles/:id/competitors", async (c) => {
