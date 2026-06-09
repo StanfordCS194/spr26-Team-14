@@ -12,12 +12,12 @@ The app runs with `bun run dev`; Vite proxies `/api` requests to the Hono server
 
 ## Core Data Flow
 
-1. Onboarding creates a business profile, exactly five competitors, optional ground-truth facts, and starter prompts.
+1. Onboarding creates a business profile, exactly five competitors, and starter prompts.
 2. Active prompts become due according to daily or weekly cadence.
 3. A monitoring run queries OpenAI, Claude, and Gemini independently.
 4. Every provider attempt is persisted, including failures, raw text, parsed sentiment, mention position, recommendation signal, feature sentiment, and citations.
 5. Successful attempts feed four downstream workflows:
-   - Accuracy Guard compares claims with active brand facts.
+   - Citation Grounding checks every factual claim for an inline source URL.
    - Competitive benchmarking calculates share of voice, sentiment, trends, gaps, and whitespace.
    - Fix-It recommendations materialize from persisted gaps and track lifecycle and measured lift.
    - Source attribution canonicalizes citations and ranks them by observed frequency.
@@ -30,7 +30,7 @@ SQLite owns user-facing product state:
 
 - profiles, competitors, and prompt configuration
 - monitoring runs and provider attempts
-- ground-truth facts and accuracy alerts
+- citation coverage checks and unsupported-claim alerts
 - recommendations, lifecycle status, and feedback
 - source citations
 
@@ -57,4 +57,4 @@ bun test
 bun run build:web
 ```
 
-The suite covers profile isolation, three-provider persistence, partial failures, parsing, cadence, Accuracy Guard, competitive aggregation, recommendation lift, and source normalization.
+The suite covers profile isolation, three-provider persistence, partial failures, parsing, cadence, citation grounding, competitive aggregation, recommendation lift, and source normalization.

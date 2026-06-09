@@ -1,104 +1,45 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
-import type { AccuracyAlert, BrandFact, BusinessProfile, FactCategory } from "../types";
+import type {
+  AccuracyAlert,
+  AccuracySummary,
+  BusinessProfile,
+  CitationProviderSummary,
+} from "../types";
 
-const emptyFact = { category: "custom" as FactCategory, label: "", value: "" };
+const emptySummary: AccuracySummary = {
+  responsesChecked: 0,
+  totalClaims: 0,
+  citedClaims: 0,
+  citationCoverage: 1,
+};
 
-function FactEditor({
-  fact,
-  onChanged,
-}: {
-  fact: BrandFact;
-  onChanged: () => Promise<void>;
-}) {
-  const [draft, setDraft] = useState(fact);
-
-  async function save() {
-    const res = await fetch(`${API_BASE}/business-profiles/${fact.businessProfileId}/facts/${fact.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        category: draft.category,
-        label: draft.label,
-        value: draft.value,
-        active: draft.active,
-      }),
-    });
-    if (res.ok) await onChanged();
-  }
-
-  async function remove() {
-    const res = await fetch(`${API_BASE}/business-profiles/${fact.businessProfileId}/facts/${fact.id}`, {
-      method: "DELETE",
-    });
-    if (res.ok) await onChanged();
-  }
-
-  return (
-    <tr>
-      <td>
-        <select
-          value={draft.category}
-          onChange={(event) => setDraft({ ...draft, category: event.target.value as FactCategory })}
-        >
-          <option value="pricing">Pricing</option>
-          <option value="feature">Feature</option>
-          <option value="executive">Executive</option>
-          <option value="company">Company</option>
-          <option value="custom">Custom</option>
-        </select>
-      </td>
-      <td><input value={draft.label} onChange={(event) => setDraft({ ...draft, label: event.target.value })} /></td>
-      <td><input value={draft.value} onChange={(event) => setDraft({ ...draft, value: event.target.value })} /></td>
-      <td>
-        <button type="button" onClick={() => setDraft({ ...draft, active: !draft.active })}>
-          {draft.active ? "Active" : "Inactive"}
-        </button>
-        <button type="button" onClick={save}>Save</button>
-        <button type="button" onClick={remove}>Delete</button>
-      </td>
-    </tr>
-  );
+function percentage(value: number | null, claims: number) {
+  return value === null || claims === 0 ? "—" : `${Math.round(value * 100)}%`;
 }
 
 export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
-  const [facts, setFacts] = useState<BrandFact[]>([]);
   const [alerts, setAlerts] = useState<AccuracyAlert[]>([]);
-  const [delivery, setDelivery] = useState({ inApp: true, emailConfigured: false, slackConfigured: false });
-  const [form, setForm] = useState(emptyFact);
+  const [summary, setSummary] = useState<AccuracySummary>(emptySummary);
+  const [providers, setProviders] = useState<CitationProviderSummary[]>([]);
   const [error, setError] = useState("");
 
   async function load() {
-    const [factRes, alertRes] = await Promise.all([
-      fetch(`${API_BASE}/business-profiles/${profile.id}/facts`),
-      fetch(`${API_BASE}/business-profiles/${profile.id}/accuracy-alerts`),
-    ]);
-    if (!factRes.ok || !alertRes.ok) throw new Error("Could not load Accuracy Guard.");
-    const factBody = await factRes.json();
-    const alertBody = await alertRes.json();
-    setFacts(factBody.facts);
-    setAlerts(alertBody.alerts);
-    setDelivery(alertBody.delivery);
+    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/accuracy-alerts`);
+    if (!res.ok) throw new Error("Could not load citation evidence.");
+    const body = await res.json();
+    setAlerts(body.alerts);
+    setSummary(body.summary);
+    setProviders(body.providers);
   }
 
   useEffect(() => {
+    setAlerts([]);
+    setSummary(emptySummary);
+    setProviders([]);
     setError("");
-    load().catch((err) => setError(err instanceof Error ? err.message : "Could not load Accuracy Guard."));
+    load().catch((err) => setError(err instanceof Error ? err.message : "Could not load citation evidence."));
   }, [profile.id]);
-
-  async function addFact() {
-    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/facts`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    if (!res.ok) {
-      setError("Could not save ground-truth fact.");
-      return;
-    }
-    setForm(emptyFact);
-    await load();
-  }
 
   async function acknowledge(alertId: string) {
     const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/accuracy-alerts/${alertId}/acknowledge`, {
@@ -107,77 +48,64 @@ export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
     if (res.ok) await load();
   }
 
+  const openAlerts = alerts.filter((alert) => alert.status === "open");
+
   return (
     <div className="block">
       <div className="stat-row">
         <div className="stat">
-          <div className="stat__label">Open alerts</div>
-          <div className="stat__value">{alerts.filter((alert) => alert.status === "open").length}</div>
+          <div className="stat__label">Responses audited</div>
+          <div className="stat__value">{summary.responsesChecked}</div>
         </div>
         <div className="stat">
-          <div className="stat__label">Ground-truth facts</div>
-          <div className="stat__value">{facts.filter((fact) => fact.active).length}</div>
+          <div className="stat__label">Claims with sources</div>
+          <div className="stat__value">{summary.citedClaims} / {summary.totalClaims}</div>
         </div>
         <div className="stat">
-          <div className="stat__label">Delivery</div>
-          <div className="stat__value">
-            In-app{delivery.emailConfigured ? " + email" : ""}{delivery.slackConfigured ? " + Slack" : ""}
-          </div>
+          <div className="stat__label">Citation coverage</div>
+          <div className="stat__value">{percentage(summary.citationCoverage, summary.totalClaims)}</div>
         </div>
       </div>
 
       <article className="card wide-panel">
-        <h2>Brand fact sheet</h2>
-        <p className="muted">Responses that discuss a fact but conflict with its configured value create an alert.</p>
-        <div className="inline-form">
-          <select
-            value={form.category}
-            onChange={(event) => setForm({ ...form, category: event.target.value as FactCategory })}
-          >
-            <option value="pricing">Pricing</option>
-            <option value="feature">Feature</option>
-            <option value="executive">Executive</option>
-            <option value="company">Company</option>
-            <option value="custom">Custom</option>
-          </select>
-          <input
-            placeholder="Claim label, e.g. starting price"
-            value={form.label}
-            onChange={(event) => setForm({ ...form, label: event.target.value })}
-          />
-          <input
-            placeholder="Ground-truth value"
-            value={form.value}
-            onChange={(event) => setForm({ ...form, value: event.target.value })}
-          />
-          <button type="button" disabled={!form.label.trim() || !form.value.trim()} onClick={addFact}>Add fact</button>
-        </div>
+        <h2>Evidence coverage by provider</h2>
+        <p className="muted">
+          A citation makes a claim traceable, not automatically true. This audit checks whether each factual claim
+          has an inline source; source quality and contradictions still require review.
+        </p>
         <table>
-          <thead><tr><th>Category</th><th>Claim</th><th>Ground truth</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Provider</th><th>Responses</th><th>Sourced claims</th><th>Coverage</th></tr></thead>
           <tbody>
-            {facts.map((fact) => (
-              <FactEditor key={fact.id} fact={fact} onChanged={load} />
+            {providers.map((provider) => (
+              <tr key={provider.provider}>
+                <td>{provider.provider}</td>
+                <td>{provider.responsesChecked}</td>
+                <td>{provider.citedClaims} / {provider.totalClaims}</td>
+                <td>{percentage(provider.citationCoverage, provider.totalClaims)}</td>
+              </tr>
             ))}
           </tbody>
         </table>
       </article>
 
       <article className="card wide-panel">
-        <h2>Accuracy alerts</h2>
-        {alerts.length === 0 ? <p className="muted">No discrepancies detected yet.</p> : (
+        <h2>Unsupported factual claims</h2>
+        {openAlerts.length === 0 ? (
+          <p className="muted">
+            {summary.responsesChecked === 0
+              ? "No responses have been audited yet. Run monitoring or a benchmark first."
+              : "Every audited factual claim currently has an inline source."}
+          </p>
+        ) : (
           <table>
-            <thead><tr><th>Severity</th><th>Observed claim</th><th>Expected</th><th>Status</th></tr></thead>
+            <thead><tr><th>Provider</th><th>Risk</th><th>Claim without a source</th><th>Action</th></tr></thead>
             <tbody>
-              {alerts.map((alert) => (
+              {openAlerts.map((alert) => (
                 <tr key={alert.id}>
+                  <td>{alert.provider}</td>
                   <td>{alert.severity}</td>
-                  <td>{alert.observedClaim}</td>
-                  <td>{alert.expectedValue}</td>
-                  <td>
-                    {alert.status === "open" ? (
-                      <button type="button" onClick={() => acknowledge(alert.id)}>Acknowledge</button>
-                    ) : "Acknowledged"}
-                  </td>
+                  <td>{alert.claimText}</td>
+                  <td><button type="button" onClick={() => acknowledge(alert.id)}>Acknowledge</button></td>
                 </tr>
               ))}
             </tbody>

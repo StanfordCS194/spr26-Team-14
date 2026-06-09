@@ -19,13 +19,13 @@ export function monitoringProviderConfigured(provider: MonitoringProvider) {
 }
 
 function mockAnswer(provider: MonitoringProvider, brandName: string, prompt: string, competitorNames: string[]) {
+  const citation = `https://example.com/${provider}`;
   if (competitorNames.length > 0 && provider === "anthropic") {
-    return `${competitorNames[0]} is the recommended option for "${prompt}" because of reliable features and good customer support. ` +
-      `Source: https://example.com/${provider}`;
+    return `${competitorNames[0]} is the recommended option for "${prompt}" because of reliable features and good customer support [${citation}].`;
   }
   const comparison = competitorNames[0] ? ` compared with ${competitorNames[0]}` : "";
-  return `${providerModels[provider]} says ${brandName} is a recommended option for "${prompt}". ` +
-    `${brandName} is known for reliable features and good customer support${comparison}. Source: https://example.com/${provider}`;
+  return `${providerModels[provider]} says ${brandName} is a recommended option for "${prompt}" [${citation}]. ` +
+    `${brandName} is known for reliable features and good customer support${comparison} [${citation}].`;
 }
 
 export async function callMonitoringProvider(input: {
@@ -56,7 +56,7 @@ export async function callMonitoringProvider(input: {
   const competitiveContext = input.competitorNames?.length
     ? `\nRelevant brands may include ${[input.brandName, ...input.competitorNames].join(", ")}.`
     : "";
-  const prompt = `Answer this consumer question naturally. Include citations as URLs when available.${competitiveContext}\n\n${input.prompt}`;
+  const prompt = `Answer this consumer question using current web evidence. Every factual claim must include its supporting source URL inline, immediately after the claim. Do not put citations only in a source list. Omit any factual claim you cannot cite, and explicitly label uncertainty.${competitiveContext}\n\n${input.prompt}`;
   if (input.provider === "openai") {
     return { model, text: await callLLM({ provider: "openai", model, prompt, useSearch: true }) };
   }
