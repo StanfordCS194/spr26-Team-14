@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Section, Stat, StatRow } from "@/components/dashboard";
 import type { BusinessProfile, CitedSource, SourcesResponse } from "../types";
 
 function sourceBadge(type: CitedSource["sourceType"]) {
@@ -16,19 +16,6 @@ function sourceBadge(type: CitedSource["sourceType"]) {
     other: "Other",
   };
   return map[type];
-}
-
-function SummaryCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold tracking-tight">{value}</div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function SourcesPage({ profile }: { profile: BusinessProfile }) {
@@ -55,31 +42,18 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
   }, [profile.id, provider, type, sentiment]);
 
   if (loading) {
-    return (
-      <Card className="wide-panel">
-        <CardHeader>
-          <CardDescription>Sources</CardDescription>
-          <CardTitle>Loading source attributions…</CardTitle>
-        </CardHeader>
-      </Card>
-    );
+    return <Section title="Loading source attributions…" />;
   }
 
   if (sources.length === 0 && !provider && !type && !sentiment) {
     return (
-      <Card className="wide-panel">
-        <CardHeader>
-          <CardDescription>Sources</CardDescription>
-          <CardTitle>No source attributions for {profile.name} yet</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Section title={`No source attributions for ${profile.name} yet`}>
         {error && <p className="error">{error}</p>}
-        <p>
+        <p className="text-sm text-muted-foreground">
           Run a live benchmark with citation tracking enabled to surface the third-party sources AI assistants
           cite when answering about this brand.
         </p>
-        </CardContent>
-      </Card>
+      </Section>
     );
   }
 
@@ -92,17 +66,8 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
     .reduce((acc, s) => acc + s.citationsThisWeek, 0);
 
   return (
-    <Card className="wide-panel">
-      <CardHeader>
-        <CardDescription>Sources</CardDescription>
-        <CardTitle>What AI cites about {profile.name}</CardTitle>
-        <CardDescription>
-          The third-party sources frontier models reach for when answering questions about this brand.
-          Counts are citations across the last 7 days of monitoring runs.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-5">
-        {error && <p className="error">{error}</p>}
+    <div className="grid gap-8">
+      {error && <p className="error">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
         <NativeSelect aria-label="Filter sources by provider" value={provider} onChange={(event) => setProvider(event.target.value)}>
@@ -128,43 +93,47 @@ export function SourcesPage({ profile }: { profile: BusinessProfile }) {
         </NativeSelect>
       </div>
 
-      <div className="stat-row">
-        <SummaryCard label="Citations / week" value={totalCitations} />
-        <SummaryCard label="Reddit" value={reddit} />
-        <SummaryCard label="News & reviews" value={newsAndReviews} />
-      </div>
+      <StatRow>
+        <Stat label="Citations / week" value={totalCitations} />
+        <Stat label="Reddit" value={reddit} />
+        <Stat label="News & reviews" value={newsAndReviews} />
+      </StatRow>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Source</TableHead>
-            <TableHead className="w-[12%]">Type</TableHead>
-            <TableHead className="w-[26%]">Brands mentioned</TableHead>
-            <TableHead className="w-[14%]">Sentiment</TableHead>
-            <TableHead className="w-[10%] text-right">Citations</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sources.map((s) => (
-            <TableRow key={s.id}>
-              <TableCell className="whitespace-normal">
-                <div className="sources-row__title"><a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></div>
-                <div className="sources-row__domain">{s.domain}</div>
-                <div className="muted">{s.providers.join(", ")} · {s.relatedRecommendationIds.length} related actions</div>
-              </TableCell>
-              <TableCell><Badge variant="secondary">{sourceBadge(s.sourceType)}</Badge></TableCell>
-              <TableCell className="whitespace-normal">{s.brandsMentioned.join(", ")}</TableCell>
-              <TableCell>
-                <Badge variant={s.sentiment === "negative" ? "destructive" : s.sentiment === "positive" ? "default" : "outline"}>
-                  {s.sentiment}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right font-semibold">{s.citationsThisWeek}</TableCell>
+      <Section
+        title={`What AI cites about ${profile.name}`}
+        description="The third-party sources frontier models reach for when answering questions about this brand. Counts are citations across the last 7 days of monitoring runs."
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Source</TableHead>
+              <TableHead className="w-[12%]">Type</TableHead>
+              <TableHead className="w-[26%]">Brands mentioned</TableHead>
+              <TableHead className="w-[14%]">Sentiment</TableHead>
+              <TableHead className="w-[10%] text-right">Citations</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      </CardContent>
-    </Card>
+          </TableHeader>
+          <TableBody>
+            {sources.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="whitespace-normal">
+                  <div className="sources-row__title"><a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></div>
+                  <div className="sources-row__domain">{s.domain}</div>
+                  <div className="muted">{s.providers.join(", ")} · {s.relatedRecommendationIds.length} related actions</div>
+                </TableCell>
+                <TableCell><Badge variant="secondary">{sourceBadge(s.sourceType)}</Badge></TableCell>
+                <TableCell className="whitespace-normal">{s.brandsMentioned.join(", ")}</TableCell>
+                <TableCell>
+                  <Badge variant={s.sentiment === "negative" ? "destructive" : s.sentiment === "positive" ? "default" : "outline"}>
+                    {s.sentiment}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right font-semibold">{s.citationsThisWeek}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Section>
+    </div>
   );
 }

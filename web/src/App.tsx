@@ -7,7 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { AccuracyPage } from "./pages/accuracy";
 import { AdminPage } from "./pages/admin";
@@ -244,50 +256,54 @@ export function ProfileDashboard({
   const activeNav = navItems.find((item) => item.key === activePage) ?? navItems[0];
 
   return (
-    <main className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="sticky top-0 flex h-screen flex-col border-r border-border/70 bg-sidebar px-3 py-4 text-sidebar-foreground" aria-label="Primary navigation">
-        <div className="flex items-center gap-3 px-2 pb-4">
-          <div className="flex size-9 items-center justify-center rounded-2xl bg-background ring-1 ring-border/70">
-            <img className="size-6 object-contain" src={logoUrl} alt="" aria-hidden="true" />
+    <SidebarProvider>
+      <Sidebar collapsible="none" className="sticky top-0 h-svh border-r">
+        <SidebarHeader>
+          <div className="flex items-center gap-2.5 px-1 py-1">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-background ring-1 ring-border">
+              <img className="size-5 object-contain" src={logoUrl} alt="" aria-hidden="true" />
+            </div>
+            <div className="grid leading-tight">
+              <span className="text-sm font-semibold tracking-tight">Perception</span>
+              <span className="text-xs text-muted-foreground">AI visibility</span>
+            </div>
           </div>
-          <div className="grid leading-tight">
-            <strong className="text-sm font-semibold tracking-tight">Perception</strong>
-            <span className="text-xs text-muted-foreground">AI visibility</span>
-          </div>
-        </div>
+        </SidebarHeader>
 
-        <Separator className="mb-3" />
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={activePage === item.key}
+                        onClick={() => onSelectPage(item.key)}
+                        className="h-auto items-start gap-3 py-2 whitespace-normal"
+                      >
+                        <Icon className="mt-0.5" />
+                        <div className="grid gap-0.5">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-xs leading-snug font-normal whitespace-normal text-muted-foreground">
+                            {item.description}
+                          </span>
+                        </div>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
 
-        <nav className="grid gap-1" aria-label="Sections">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = activePage === item.key;
-            return (
-              <Button
-                key={item.key}
-                type="button"
-                variant={active ? "secondary" : "ghost"}
-                className="h-auto justify-start gap-3 rounded-2xl px-3 py-2 text-left"
-                aria-current={active ? "page" : undefined}
-                onClick={() => onSelectPage(item.key)}
-              >
-                <Icon className="size-4 text-muted-foreground" data-icon="inline-start" />
-                <span className="grid">
-                  <span>{item.label}</span>
-                  <span className="line-clamp-1 text-xs font-normal text-muted-foreground">{item.description}</span>
-                </span>
-              </Button>
-            );
-          })}
-        </nav>
-
-        <Card className="mt-auto border-border/70 bg-background/80 shadow-none" size="sm">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2">
-              <BuildingsIcon className="size-4" /> Active brand
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
+        <SidebarFooter>
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+              <BuildingsIcon className="size-3.5" /> Active brand
+            </Label>
             <NativeSelect
               aria-label="Active business profile"
               className="w-full"
@@ -300,28 +316,26 @@ export function ProfileDashboard({
                 </option>
               ))}
             </NativeSelect>
-            <Button type="button" variant="outline" onClick={onAddProfile}>
+            <Button type="button" variant="outline" size="sm" onClick={onAddProfile}>
               <PlusIcon data-icon="inline-start" />
               Add brand
             </Button>
-          </CardContent>
-        </Card>
-      </aside>
+          </div>
+        </SidebarFooter>
+      </Sidebar>
 
-      <section className="min-w-0 bg-background px-5 py-6 md:px-8 lg:px-10">
-        <div className="mx-auto grid w-full max-w-7xl gap-6">
-          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-5">
-            <div>
-              <Badge variant="outline" className="mb-3">
-                <BinocularsIcon data-icon="inline-start" />
-                {profile.name}
-              </Badge>
-              <h1 className="text-3xl font-semibold tracking-tight">{activeNav.label}</h1>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{activeNav.description}</p>
-            </div>
-          </header>
+      <SidebarInset>
+        <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6">
+          <Badge variant="outline" className="mb-2">
+            <BinocularsIcon data-icon="inline-start" />
+            {profile.name}
+          </Badge>
+          <h1 className="text-2xl font-semibold tracking-tight">{activeNav.label}</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{activeNav.description}</p>
+        </header>
 
-          <section hidden={activePage !== "benchmarking"}>
+        <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 md:px-6">
+          <section hidden={activePage !== "benchmarking"} className="grid gap-6">
             <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
           </section>
 
@@ -339,8 +353,8 @@ export function ProfileDashboard({
 
           {error && <p className="error">{error}</p>}
         </div>
-      </section>
-    </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 

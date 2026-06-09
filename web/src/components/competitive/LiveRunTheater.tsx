@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 const TOTAL_PROMPTS_PER_BRAND = 20;
@@ -37,15 +36,14 @@ export function LiveRunTheater({ busy, progressStatus, judgeLines, progressByBra
   }
 
   return (
-    <Card className="theater">
-      <CardHeader className="theater__head">
+    <section className="grid gap-4">
+      <div className="theater__head">
         <div>
           <Badge variant="secondary">Live Run</Badge>
-          <CardTitle className="mt-2">All six brands streaming in parallel</CardTitle>
+          <h2 className="mt-2 text-sm font-semibold tracking-tight">All six brands streaming in parallel</h2>
         </div>
         <Badge variant="outline">{progressStatus}</Badge>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+      </div>
 
       {judgeLines.length > 0 && (
         <aside className="theater__judge">
@@ -81,7 +79,6 @@ export function LiveRunTheater({ busy, progressStatus, judgeLines, progressByBra
           );
         })}
       </div>
-      </CardContent>
-    </Card>
+    </section>
   );
 }

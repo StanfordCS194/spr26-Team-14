@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Section } from "@/components/dashboard";
 import { PlayIcon, PlusCircleIcon } from "@/components/app-icons";
 
 interface Props {
@@ -36,18 +36,12 @@ export function CompetitiveSetPicker({
   }, [accountBrandName, competitorNames]);
 
   return (
-    <Card className="wide-panel border-border/70">
-      <CardHeader className="gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>Competitive set</CardTitle>
-          <Badge variant="secondary">5 competitors</Badge>
-        </div>
-        <CardDescription>
-          Pick your brand and five competitors. We&rsquo;ll fan twenty perception prompts across every brand and
-          compare the answers.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-5">
+    <Section
+      title="Competitive set"
+      description="Pick your brand and five competitors. We'll fan twenty perception prompts across every brand and compare the answers."
+      action={<Badge variant="secondary">5 competitors</Badge>}
+    >
+      <div className="grid gap-5">
         <div className="grid gap-2">
           <Label htmlFor="account-brand">Your brand</Label>
           <Input
@@ -104,7 +98,7 @@ export function CompetitiveSetPicker({
             </span>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

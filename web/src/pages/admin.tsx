@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Section, Stat, StatRow } from "@/components/dashboard";
 import type { AdminMetricsResponse, BusinessProfile, RecommendationFeedbackMetrics } from "../types";
 
 const emptyMetrics: RecommendationFeedbackMetrics = {
@@ -10,19 +10,6 @@ const emptyMetrics: RecommendationFeedbackMetrics = {
   bad: 0,
   unrated: 0,
 };
-
-type AdminStatProps = { label: string; value: number | string };
-
-const AdminStat = ({ label, value }: AdminStatProps) => (
-  <Card size="sm">
-    <CardHeader>
-      <CardDescription>{label}</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-semibold tracking-tight">{value}</div>
-    </CardContent>
-  </Card>
-);
 
 export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
   const [metrics, setMetrics] = useState<RecommendationFeedbackMetrics>(emptyMetrics);
@@ -44,55 +31,48 @@ export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
   const goodRate = metrics.total === 0 ? "0%" : `${Math.round((metrics.good / metrics.total) * 100)}%`;
 
   return (
-    <>
-      <div className="block">
-        <h2 className="block__title">Feedback metrics</h2>
-        <p className="muted">
-          Admin metrics start with recommendation quality feedback. We can add more feedback surfaces here over time.
-        </p>
-        {error && <p className="error">{error}</p>}
-        {loading ? (
-          <Card className="wide-panel">
-            <CardContent>
-              <p className="muted">Loading admin metrics…</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <div className="stat-row admin-stat-row">
-              <AdminStat label="Good recommendations" value={metrics.good} />
-              <AdminStat label="Bad recommendations" value={metrics.bad} />
-              <AdminStat label="Good rate" value={goodRate} />
-            </div>
+    <Section
+      title="Feedback metrics"
+      description="Admin metrics start with recommendation quality feedback. We can add more feedback surfaces here over time."
+    >
+      {error && <p className="error">{error}</p>}
+      {loading ? (
+        <p className="muted">Loading admin metrics…</p>
+      ) : (
+        <div className="grid gap-8">
+          <StatRow>
+            <Stat label="Good recommendations" value={metrics.good} />
+            <Stat label="Bad recommendations" value={metrics.bad} />
+            <Stat label="Good rate" value={goodRate} />
+          </StatRow>
 
-            <Card className="wide-panel admin-metrics-card">
-              <CardHeader>
-                <CardTitle>Recommendation feedback</CardTitle>
-                <CardDescription>
-                  {metrics.total} of {recommendationCount} recommendations have feedback ({ratedPercent}% rated).
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="admin-feedback-bars" aria-label="Recommendation feedback breakdown">
-                <div className="admin-feedback-bars__row">
-                  <span>Good</span>
-                  <Progress value={recommendationCount ? (metrics.good / recommendationCount) * 100 : 0} />
-                  <strong>{metrics.good}</strong>
-                </div>
-                <div className="admin-feedback-bars__row">
-                  <span>Bad</span>
-                  <Progress value={recommendationCount ? (metrics.bad / recommendationCount) * 100 : 0} />
-                  <strong>{metrics.bad}</strong>
-                </div>
-                <div className="admin-feedback-bars__row">
-                  <span>Unrated</span>
-                  <Progress value={recommendationCount ? (metrics.unrated / recommendationCount) * 100 : 0} />
-                  <strong>{metrics.unrated}</strong>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
-    </>
+          <div className="grid gap-3">
+            <div className="grid gap-0.5">
+              <h3 className="text-sm font-semibold tracking-tight">Recommendation feedback</h3>
+              <p className="text-sm text-muted-foreground">
+                {metrics.total} of {recommendationCount} recommendations have feedback ({ratedPercent}% rated).
+              </p>
+            </div>
+            <div className="admin-feedback-bars" aria-label="Recommendation feedback breakdown">
+              <div className="admin-feedback-bars__row">
+                <span>Good</span>
+                <Progress value={recommendationCount ? (metrics.good / recommendationCount) * 100 : 0} />
+                <strong>{metrics.good}</strong>
+              </div>
+              <div className="admin-feedback-bars__row">
+                <span>Bad</span>
+                <Progress value={recommendationCount ? (metrics.bad / recommendationCount) * 100 : 0} />
+                <strong>{metrics.bad}</strong>
+              </div>
+              <div className="admin-feedback-bars__row">
+                <span>Unrated</span>
+                <Progress value={recommendationCount ? (metrics.unrated / recommendationCount) * 100 : 0} />
+                <strong>{metrics.unrated}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </Section>
   );
 };

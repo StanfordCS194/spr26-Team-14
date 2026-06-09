@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { API_BASE } from "../api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { NativeSelect } from "@/components/ui/native-select"
+import { Section, Stat, StatRow } from "@/components/dashboard"
 import { ThumbsDownIcon, ThumbsUpIcon } from "@/components/app-icons"
 import type {
   BusinessProfile,
@@ -41,19 +41,6 @@ const normalizeEvidence = (text: string) =>
     .replaceAll(/\s+/g, " ")
     .trim()
 
-type SummaryStatProps = { label: string; value: number }
-
-const SummaryStat = ({ label, value }: SummaryStatProps) => (
-  <Card size="sm">
-    <CardHeader>
-      <CardDescription>{label}</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-semibold tracking-tight">{value}</div>
-    </CardContent>
-  </Card>
-)
-
 type RecommendationItemProps = {
   rec: Recommendation
   rank: number
@@ -65,38 +52,37 @@ type RecommendationItemProps = {
 const RecommendationItem = ({ rec, rank, rating, onRate, onStatus }: RecommendationItemProps) => {
   const titleId = `rec-title-${rec.id}`
   return (
-    <Card aria-labelledby={titleId}>
-      <CardHeader>
+    <article aria-labelledby={titleId} className="grid gap-4 py-6 first:pt-0">
+      <div className="grid gap-2">
         <div className="flex flex-wrap gap-1.5" aria-label="Category, impact, and effort">
           <Badge variant="secondary">{categoryLabel(rec.category)}</Badge>
           <Badge variant={rec.impact === "high" ? "default" : "outline"}>{rec.impact} impact</Badge>
           <Badge variant="outline">{rec.effort} effort</Badge>
         </div>
-        <CardTitle id={titleId} className="flex items-center gap-2">
+        <h3 id={titleId} className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <span className="text-muted-foreground">{rank}.</span>
           {rec.title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div>
-          <p className="subhead">Signal</p>
-          <p className="rec-item__body">{normalizeEvidence(rec.evidence)}</p>
-        </div>
-        <div>
-          <p className="subhead">Suggested action</p>
-          <p className="rec-item__body">{rec.action}</p>
-        </div>
+        </h3>
+      </div>
+      <div>
+        <p className="subhead">Signal</p>
+        <p className="rec-item__body">{normalizeEvidence(rec.evidence)}</p>
+      </div>
+      <div>
+        <p className="subhead">Suggested action</p>
+        <p className="rec-item__body">{rec.action}</p>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">Status</span>
         <NativeSelect
           value={rec.status}
           onChange={(event) => onStatus(rec.id, event.target.value as RecommendationStatus)}
         >
-            <option value="proposed">Proposed</option>
-            <option value="planned">Planned</option>
-            <option value="in_progress">In progress</option>
-            <option value="completed">Completed</option>
-            <option value="dismissed">Dismissed</option>
+          <option value="proposed">Proposed</option>
+          <option value="planned">Planned</option>
+          <option value="in_progress">In progress</option>
+          <option value="completed">Completed</option>
+          <option value="dismissed">Dismissed</option>
         </NativeSelect>
         {rec.targetProvider && <Badge variant="outline">Target: {rec.targetProvider}</Badge>}
         {rec.lift.delta !== null && (
@@ -130,8 +116,7 @@ const RecommendationItem = ({ rec, rank, rating, onRate, onStatus }: Recommendat
           </Button>
         </div>
       </div>
-      </CardContent>
-    </Card>
+    </article>
   )
 }
 
@@ -209,30 +194,17 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
   }
 
   if (loading) {
-    return (
-      <Card className="wide-panel">
-        <CardHeader>
-          <CardDescription>Recommendations</CardDescription>
-          <CardTitle>Loading recommendations…</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <Section title="Loading recommendations…" />
   }
 
   if (recs.length === 0) {
     return (
-      <Card className="wide-panel">
-        <CardHeader>
-          <CardDescription>Recommendations</CardDescription>
-          <CardTitle>No recommendations for {profile.name} yet</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Section title={`No recommendations for ${profile.name} yet`}>
         {loadError && <p className="error">{loadError}</p>}
         <p className="muted">
           Run a live benchmark on Benchmarking to surface gaps; we&rsquo;ll prioritise fix-it ideas here.
         </p>
-        </CardContent>
-      </Card>
+      </Section>
     )
   }
 
@@ -243,23 +215,25 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
   ).length
 
   return (
-    <>
-      <div className="block">
-        <h2 className="block__title">At a glance</h2>
-        <p className="muted">Initiative counts for {profile.name}, ranked like the benchmarking tabs.</p>
-        <div className="stat-row">
-          <SummaryStat label="Active initiatives" value={activeRecs.length} />
-          <SummaryStat label="High impact" value={highImpact} />
-          <SummaryStat label="Quick wins" value={quickWins} />
-        </div>
-      </div>
+    <div className="grid gap-8">
+      <Section
+        title="At a glance"
+        description={`Initiative counts for ${profile.name}, ranked like the benchmarking tabs.`}
+      >
+        <StatRow>
+          <Stat label="Active initiatives" value={activeRecs.length} />
+          <Stat label="High impact" value={highImpact} />
+          <Stat label="Quick wins" value={quickWins} />
+        </StatRow>
+      </Section>
 
-      <div className="block">
-        <h2 className="block__title">Prioritised actions</h2>
-        <p className="muted">High impact first. Each card maps to a detected gap or whitespace cue.</p>
+      <Section
+        title="Prioritised actions"
+        description="High impact first. Each item maps to a detected gap or whitespace cue."
+      >
         {loadError && <p className="error">{loadError}</p>}
         {feedbackError && <p className="error">{feedbackError}</p>}
-        <div className="rec-stack">
+        <div className="divide-y divide-border">
           {recs.map((rec, i) => (
             <RecommendationItem
               key={rec.id}
@@ -271,7 +245,7 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
             />
           ))}
         </div>
-      </div>
-    </>
+      </Section>
+    </div>
   )
 }

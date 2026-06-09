@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Section, Stat, StatRow } from "@/components/dashboard";
 import type {
   AccuracyAlert,
   AccuracySummary,
@@ -20,19 +20,6 @@ const emptySummary: AccuracySummary = {
 
 function percentage(value: number | null, claims: number) {
   return value === null || claims === 0 ? "—" : `${Math.round(value * 100)}%`;
-}
-
-function SummaryCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold tracking-tight">{value}</div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
@@ -68,22 +55,17 @@ export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
   const openAlerts = alerts.filter((alert) => alert.status === "open");
 
   return (
-    <div className="block">
-      <div className="stat-row">
-        <SummaryCard label="Responses audited" value={summary.responsesChecked} />
-        <SummaryCard label="Claims with sources" value={`${summary.citedClaims} / ${summary.totalClaims}`} />
-        <SummaryCard label="Citation coverage" value={percentage(summary.citationCoverage, summary.totalClaims)} />
-      </div>
+    <div className="grid gap-8">
+      <StatRow>
+        <Stat label="Responses audited" value={summary.responsesChecked} />
+        <Stat label="Claims with sources" value={`${summary.citedClaims} / ${summary.totalClaims}`} />
+        <Stat label="Citation coverage" value={percentage(summary.citationCoverage, summary.totalClaims)} />
+      </StatRow>
 
-      <Card className="wide-panel">
-        <CardHeader>
-          <CardTitle>Evidence coverage by provider</CardTitle>
-          <CardDescription>
-            A citation makes a claim traceable, not automatically true. This audit checks whether each factual claim
-            has an inline source; source quality and contradictions still require review.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Section
+        title="Evidence coverage by provider"
+        description="A citation makes a claim traceable, not automatically true. This audit checks whether each factual claim has an inline source; source quality and contradictions still require review."
+      >
         <Table>
           <TableHeader><TableRow><TableHead>Provider</TableHead><TableHead>Responses</TableHead><TableHead>Sourced claims</TableHead><TableHead>Coverage</TableHead></TableRow></TableHeader>
           <TableBody>
@@ -97,14 +79,9 @@ export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
             ))}
           </TableBody>
         </Table>
-        </CardContent>
-      </Card>
+      </Section>
 
-      <Card className="wide-panel">
-        <CardHeader>
-          <CardTitle>Unsupported factual claims</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Section title="Unsupported factual claims">
         {openAlerts.length === 0 ? (
           <p className="muted">
             {summary.responsesChecked === 0
@@ -126,8 +103,7 @@ export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
             </TableBody>
           </Table>
         )}
-        </CardContent>
-      </Card>
+      </Section>
       {error && <p className="error">{error}</p>}
     </div>
   );

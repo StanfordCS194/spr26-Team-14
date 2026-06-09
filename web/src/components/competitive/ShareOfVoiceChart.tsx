@@ -1,7 +1,7 @@
 import type { OverviewRow } from "../../types";
 import type { CSSProperties } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Section } from "@/components/dashboard";
 
 const BRAND_VARS = [
   "var(--brand-1)",
@@ -24,13 +24,8 @@ export function ShareOfVoiceChart({
   const max = Math.max(0.001, ...sorted.map((row) => row.shareOfVoice));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Share of voice</CardTitle>
-        <CardDescription>Comparative narrative weight across all 20 perception prompts.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3">
+    <Section title="Share of voice" description="Comparative narrative weight across all 20 perception prompts.">
+      <div className="grid gap-3">
         {sorted.map((row, idx) => (
           <div className="grid gap-1.5" key={row.brandId}>
             <div className="flex items-center justify-between gap-3 text-sm">
@@ -43,8 +38,7 @@ export function ShareOfVoiceChart({
             />
           </div>
         ))}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

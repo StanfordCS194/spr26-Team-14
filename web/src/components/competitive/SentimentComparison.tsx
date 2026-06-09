@@ -1,5 +1,5 @@
 import type { OverviewRow } from "../../types";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Section } from "@/components/dashboard";
 
 export function SentimentComparison({
   rows,
@@ -12,13 +12,8 @@ export function SentimentComparison({
   const sorted = [...rows].sort((a, b) => b.sentiment - a.sentiment);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sentiment</CardTitle>
-        <CardDescription>Where each brand sits on a -1 to +1 valence axis.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3">
+    <Section title="Sentiment" description="Where each brand sits on a -1 to +1 valence axis.">
+      <div className="grid gap-3">
         {sorted.map((row) => {
           const pct = ((row.sentiment + 1) / 2) * 100;
           const tone =
@@ -41,8 +36,7 @@ export function SentimentComparison({
             </div>
           );
         })}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

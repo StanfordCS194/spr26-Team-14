@@ -6,8 +6,8 @@ import { SentimentComparison } from "../components/competitive/SentimentComparis
 import { ShareOfVoiceChart } from "../components/competitive/ShareOfVoiceChart";
 import { WhitespacePanel } from "../components/competitive/WhitespacePanel";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Section } from "@/components/dashboard";
 import type { CompetitiveProgressEvent, GapEvent, OverviewResponse, TrendsResponse } from "../types";
 
 interface SnapshotResponse {
@@ -351,33 +351,29 @@ export function CompetitivePage({
 
       {overview && (
         <>
-          <div className="block">
-            <h2 className="block__title">At a glance</h2>
-            <div className="charts-grid">
+          <Section title="At a glance">
+            <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
               <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
               <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
             </div>
-          </div>
+          </Section>
 
-          <div className="block">
-            <h2 className="block__title">Feature signal &amp; gaps</h2>
+          <Section title="Feature signal & gaps">
             <FeatureGapTable
               rows={overview.rows}
               gaps={gaps}
               brandLabels={brandLabels}
               accountBrandName={accountBrandName}
             />
-          </div>
+          </Section>
 
-          <div className="block">
-            <h2 className="block__title">Whitespace</h2>
+          <Section title="Whitespace">
             <WhitespacePanel gaps={gaps} />
-          </div>
+          </Section>
         </>
       )}
 
-      <div className="block">
-        <h2 className="block__title">Trend snapshot</h2>
+      <Section title="Trend snapshot">
         {!trends || Object.keys(trends.seriesByBrand).length === 0 ? (
           <p className="muted">Run a benchmark to populate trend lines.</p>
         ) : (
@@ -398,11 +394,8 @@ export function CompetitivePage({
                 .sort((a, b) => (a.day < b.day ? -1 : 1));
 
               return (
-                <Card className="trend-grid__brand" size="sm" key={id}>
-                  <CardHeader>
-                    <CardTitle>{brandLabels[id] ?? id}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                <div className="trend-grid__brand" key={id}>
+                  <div className="trend-grid__name">{brandLabels[id] ?? id}</div>
                   <Table className="trend-mini">
                     <TableBody>
                       {days.map((d) => {
@@ -429,18 +422,14 @@ export function CompetitivePage({
                       })}
                     </TableBody>
                   </Table>
-                  </CardContent>
-                </Card>
+                </div>
               );
             })}
           </div>
         )}
-      </div>
+      </Section>
 
-      <div className="block">
-        <h2 className="block__title">Run configuration</h2>
-        <Card className="wide-panel">
-          <CardContent>
+      <Section title="Run configuration">
         <dl className="run-meta">
           <div>
             <dt>Account</dt>
@@ -459,9 +448,7 @@ export function CompetitivePage({
             <dd>{lastWindow ? `${lastWindow.windowStart.slice(0, 10)} → ${lastWindow.windowEnd.slice(0, 10)}` : "—"}</dd>
           </div>
         </dl>
-          </CardContent>
-        </Card>
-      </div>
+      </Section>
     </>
   );
 }

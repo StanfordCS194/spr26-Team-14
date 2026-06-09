@@ -7,6 +7,7 @@
 @source "./main.tsx";
 @source "./pages";
 @source "./components/app-icons.tsx";
+@source "./components/dashboard.tsx";
 @source "./components/competitive";
 @source "./components/ui/badge.tsx";
 @source "./components/ui/button.tsx";
@@ -16,6 +17,7 @@
 @source "./components/ui/native-select.tsx";
 @source "./components/ui/progress.tsx";
 @source "./components/ui/separator.tsx";
+@source "./components/ui/sidebar.tsx";
 @source "./components/ui/table.tsx";
 @source "./components/ui/textarea.tsx";
 @source "./components/ui/tooltip.tsx";
@@ -110,8 +112,6 @@ body {
   margin: 0;
   font-size: 14px;
   line-height: 1.55;
-  color: var(--ink);
-  background: var(--surface);
 }
 
 button,
@@ -119,87 +119,15 @@ select,
 input,
 textarea { font: inherit; }
 
-.page,
-.app-shell { min-height: 100vh; }
-
 .center-page {
   display: grid;
   place-items: center;
+  min-height: 100vh;
   padding: 28px;
   background: var(--surface-2);
 }
 
-/* ---------- Onboarding ---------- */
-.onboarding {
-  display: grid;
-  gap: 14px;
-  width: min(520px, 100%);
-  padding: 28px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.onboarding h1 {
-  margin: 0 0 4px;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.018em;
-  color: var(--ink);
-}
-
-label {
-  display: grid;
-  gap: 5px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-3);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-input,
-select,
-textarea {
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  padding: 8px 11px;
-  background: var(--surface);
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  font-weight: 400;
-  color: var(--ink);
-  letter-spacing: 0;
-  text-transform: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
-}
-input:hover, select:hover, textarea:hover { border-color: var(--ink-3); }
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 6px;
-  padding: 8px 14px;
-  color: white;
-  background: var(--ink);
-  cursor: pointer;
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: 13.5px;
-  letter-spacing: -0.005em;
-  transition: background 140ms ease, opacity 140ms ease;
-}
-button:hover { background: var(--accent); }
-button:disabled { cursor: not-allowed; opacity: 0.45; }
-
-/* ---------- Shell ---------- */
+/* ---------- Shell (legacy, retained for reference) ---------- */
 .app-shell {
   display: grid;
   grid-template-columns: 232px 1fr;
@@ -414,22 +342,6 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 dl { display: grid; gap: 12px; margin: 0; }
 dd { margin: 4px 0 0; font-size: 13.5px; color: var(--ink); }
 dt {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-th, td {
-  padding: 10px 12px 10px 0;
-  text-align: left;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-tr:last-child td { border-bottom: none; }
-th {
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 500;
@@ -682,7 +594,7 @@ th {
   line-height: 1.6;
 }
 .bullet-list li + li { margin-top: 6px; }
-.bullet-list em { font-style: italic; color: var(--accent); font-weight: 600; }
+.bullet-list em { font-style: normal; color: var(--foreground); font-weight: 600; }
 
 .stat-row {
   display: grid;
@@ -845,7 +757,7 @@ th {
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--accent);
+  color: var(--primary);
   margin-bottom: 4px;
 }
 .theater__title {
@@ -969,13 +881,8 @@ th {
   gap: 10px;
 }
 .trend-grid__brand {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: var(--surface);
-  transition: border-color 160ms ease;
+  padding: 0;
 }
-.trend-grid__brand:hover { border-color: var(--line-strong); }
 .trend-grid__name {
   font-weight: 600;
   font-size: 12.5px;
@@ -1045,8 +952,8 @@ th {
 }
 
 ::selection {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 @media (max-width: 720px) {
@@ -1085,7 +992,7 @@ th {
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted-foreground);
+  --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
