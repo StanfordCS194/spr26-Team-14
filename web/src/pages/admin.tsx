@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import type { AdminMetricsResponse, BusinessProfile, RecommendationFeedbackMetrics } from "../types";
 
 const emptyMetrics: RecommendationFeedbackMetrics = {
@@ -12,10 +14,14 @@ const emptyMetrics: RecommendationFeedbackMetrics = {
 type AdminStatProps = { label: string; value: number | string };
 
 const AdminStat = ({ label, value }: AdminStatProps) => (
-  <div className="stat">
-    <div className="stat__label">{label}</div>
-    <div className="stat__value">{value}</div>
-  </div>
+  <Card size="sm">
+    <CardHeader>
+      <CardDescription>{label}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-semibold tracking-tight">{value}</div>
+    </CardContent>
+  </Card>
 );
 
 export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
@@ -46,9 +52,11 @@ export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
         </p>
         {error && <p className="error">{error}</p>}
         {loading ? (
-          <article className="card wide-panel">
-            <p className="muted">Loading admin metrics…</p>
-          </article>
+          <Card className="wide-panel">
+            <CardContent>
+              <p className="muted">Loading admin metrics…</p>
+            </CardContent>
+          </Card>
         ) : (
           <>
             <div className="stat-row admin-stat-row">
@@ -57,46 +65,31 @@ export const AdminPage = ({ profile }: { profile: BusinessProfile }) => {
               <AdminStat label="Good rate" value={goodRate} />
             </div>
 
-            <article className="card wide-panel admin-metrics-card">
-              <div>
-                <h3 className="admin-metrics-card__title">Recommendation feedback</h3>
-                <p className="muted">
+            <Card className="wide-panel admin-metrics-card">
+              <CardHeader>
+                <CardTitle>Recommendation feedback</CardTitle>
+                <CardDescription>
                   {metrics.total} of {recommendationCount} recommendations have feedback ({ratedPercent}% rated).
-                </p>
-              </div>
-              <div className="admin-feedback-bars" aria-label="Recommendation feedback breakdown">
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="admin-feedback-bars" aria-label="Recommendation feedback breakdown">
                 <div className="admin-feedback-bars__row">
                   <span>Good</span>
-                  <div className="metric-row__bar">
-                    <span
-                      className="metric-row__fill admin-feedback-bars__good"
-                      style={{ width: `${recommendationCount ? (metrics.good / recommendationCount) * 100 : 0}%` }}
-                    />
-                  </div>
+                  <Progress value={recommendationCount ? (metrics.good / recommendationCount) * 100 : 0} />
                   <strong>{metrics.good}</strong>
                 </div>
                 <div className="admin-feedback-bars__row">
                   <span>Bad</span>
-                  <div className="metric-row__bar">
-                    <span
-                      className="metric-row__fill admin-feedback-bars__bad"
-                      style={{ width: `${recommendationCount ? (metrics.bad / recommendationCount) * 100 : 0}%` }}
-                    />
-                  </div>
+                  <Progress value={recommendationCount ? (metrics.bad / recommendationCount) * 100 : 0} />
                   <strong>{metrics.bad}</strong>
                 </div>
                 <div className="admin-feedback-bars__row">
                   <span>Unrated</span>
-                  <div className="metric-row__bar">
-                    <span
-                      className="metric-row__fill admin-feedback-bars__unrated"
-                      style={{ width: `${recommendationCount ? (metrics.unrated / recommendationCount) * 100 : 0}%` }}
-                    />
-                  </div>
+                  <Progress value={recommendationCount ? (metrics.unrated / recommendationCount) * 100 : 0} />
                   <strong>{metrics.unrated}</strong>
                 </div>
-              </div>
-            </article>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PlayIcon, PlusIcon } from "@/components/app-icons";
 import type { BusinessProfile, MonitoringHistoryPoint, MonitoringResponse } from "../types";
 
 function sentimentLabel(value: string) {
@@ -7,6 +14,19 @@ function sentimentLabel(value: string) {
 }
 
 const yTicks = [-1, -0.5, 0, 0.5, 1];
+
+function SummaryCard({ label, value }: { label: string; value: number | string }) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] }) {
   const width = 700;
@@ -39,11 +59,12 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
   });
 
   return (
-    <section className="sentiment-card">
-      <div>
-        <p className="muted">Overall Sentiment</p>
-        <h3>Past 7 days</h3>
-      </div>
+    <Card>
+      <CardHeader>
+        <CardDescription>Overall Sentiment</CardDescription>
+        <CardTitle>Past 7 days</CardTitle>
+      </CardHeader>
+      <CardContent>
       <svg className="sentiment-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="7 day sentiment trend">
         {points.map((point) => (
           <line
@@ -94,7 +115,8 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
           </text>
         )}
       </svg>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -184,88 +206,91 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
 
   if (!data || (data.status === "generating" && data.prompts.length === 0)) {
     return (
-      <article className="panel">
-        <p className="muted">Monitoring</p>
-        <h2>Generating starter prompts...</h2>
-        <p>Perception is creating chatbot queries for {profile.name} from the website and business description.</p>
-      </article>
+      <Card>
+        <CardHeader>
+          <CardDescription>Monitoring</CardDescription>
+          <CardTitle>Generating starter prompts...</CardTitle>
+          <CardDescription>
+            Perception is creating chatbot queries for {profile.name} from the website and business description.
+          </CardDescription>
+        </CardHeader>
+      </Card>
     );
   }
 
   return (
-    <article className="panel wide-panel">
-      <p className="muted">Monitoring</p>
-      <h2>{profile.name}</h2>
-      <p>Track the prompts where this business should appear in chatbot answers.</p>
+    <Card className="wide-panel">
+      <CardHeader>
+        <CardDescription>Monitoring</CardDescription>
+        <CardTitle>{profile.name}</CardTitle>
+        <CardDescription>Track the prompts where this business should appear in chatbot answers.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
       <div className="stat-row">
-        <div className="stat">
-          <div className="stat__label">Stored responses</div>
-          <div className="stat__value">{data.summary.totalResponses}</div>
-        </div>
-        <div className="stat">
-          <div className="stat__label">Mention frequency</div>
-          <div className="stat__value">{Math.round(data.summary.mentionFrequency * 100)}%</div>
-        </div>
-        <div className="stat">
-          <div className="stat__label">Recommended responses</div>
-          <div className="stat__value">{data.summary.recommendedResponses}</div>
-        </div>
+        <SummaryCard label="Stored responses" value={data.summary.totalResponses} />
+        <SummaryCard label="Mention frequency" value={`${Math.round(data.summary.mentionFrequency * 100)}%`} />
+        <SummaryCard label="Recommended responses" value={data.summary.recommendedResponses} />
       </div>
       <SentimentTrend history={data.history} />
-      <div className="inline-form">
-        <button type="button" onClick={runLiveMonitoring} disabled={running || data.prompts.length === 0}>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" onClick={runLiveMonitoring} disabled={running || data.prompts.length === 0}>
+          <PlayIcon data-icon="inline-start" />
           {running ? "Running monitoring…" : "Run live monitoring"}
-        </button>
+        </Button>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Prompt</th>
-            <th>Category</th>
-            <th>Cadence</th>
-            <th>Mention</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Prompt</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Cadence</TableHead>
+            <TableHead>Mention</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {data.prompts.map((item) => (
-            <tr key={item.id}>
-              <td>{item.prompt}</td>
-              <td>{item.category}</td>
-              <td>{item.cadence}</td>
-              <td>
-                <span className={`sentiment sentiment-${item.mentionSentiment}`}>
+            <TableRow key={item.id}>
+              <TableCell className="whitespace-normal">{item.prompt}</TableCell>
+              <TableCell>{item.category}</TableCell>
+              <TableCell>{item.cadence}</TableCell>
+              <TableCell>
+                <Badge variant={item.mentionSentiment === "negative" ? "destructive" : item.mentionSentiment === "positive" ? "default" : "outline"}>
                   {sentimentLabel(item.mentionSentiment)}
-                </span>
-              </td>
-              <td><button type="button" onClick={() => togglePrompt(item)}>{item.active ? "Active" : "Paused"}</button></td>
-            </tr>
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Button type="button" variant="outline" size="sm" onClick={() => togglePrompt(item)}>
+                  {item.active ? "Active" : "Paused"}
+                </Button>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       <h3>Provider health</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Provider</th>
-            <th>Successful</th>
-            <th>Mentions</th>
-            <th>Errors</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Provider</TableHead>
+            <TableHead>Successful</TableHead>
+            <TableHead>Mentions</TableHead>
+            <TableHead>Errors</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {data.summary.providerBreakdown.map((item) => (
-            <tr key={item.provider}>
-              <td>{sentimentLabel(item.provider)}</td>
-              <td>{item.successes} / {item.attempts}</td>
-              <td>{item.mentions}</td>
-              <td>{item.errors}</td>
-            </tr>
+            <TableRow key={item.provider}>
+              <TableCell>{sentimentLabel(item.provider)}</TableCell>
+              <TableCell>{item.successes} / {item.attempts}</TableCell>
+              <TableCell>{item.mentions}</TableCell>
+              <TableCell>{item.errors}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       {data.summary.latestAttempts.some((attempt) => attempt.status === "error") && (
         <div className="error">
@@ -276,30 +301,33 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
         </div>
       )}
 
-      <div className="inline-form">
-        <input
+      <div className="flex flex-wrap gap-2">
+        <Input
+          className="w-full min-w-72 flex-1"
           placeholder="Add a prompt to monitor"
           value={newPrompt}
           onChange={(event) => setNewPrompt(event.target.value)}
         />
-        <select value={newCategory} onChange={(event) => setNewCategory(event.target.value as typeof newCategory)}>
+        <NativeSelect value={newCategory} onChange={(event) => setNewCategory(event.target.value as typeof newCategory)}>
           <option value="comparison">Comparison</option>
           <option value="recommendation">Recommendation</option>
           <option value="feature">Feature</option>
           <option value="pricing">Pricing</option>
           <option value="custom">Custom</option>
-        </select>
-        <select value={newCadence} onChange={(event) => setNewCadence(event.target.value as typeof newCadence)}>
+        </NativeSelect>
+        <NativeSelect value={newCadence} onChange={(event) => setNewCadence(event.target.value as typeof newCadence)}>
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
-        </select>
-        <button type="button" onClick={addPrompt} disabled={!newPrompt.trim()}>
+        </NativeSelect>
+        <Button type="button" onClick={addPrompt} disabled={!newPrompt.trim()}>
+          <PlusIcon data-icon="inline-start" />
           Add prompt
-        </button>
+        </Button>
       </div>
 
       {data.status === "error" && <p className="error">{data.error ?? "Prompt generation fell back to sample data."}</p>}
       {error && <p className="error">{error}</p>}
-    </article>
+      </CardContent>
+    </Card>
   );
 }

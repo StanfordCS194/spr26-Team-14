@@ -5,6 +5,9 @@ import { LiveRunTheater } from "../components/competitive/LiveRunTheater";
 import { SentimentComparison } from "../components/competitive/SentimentComparison";
 import { ShareOfVoiceChart } from "../components/competitive/ShareOfVoiceChart";
 import { WhitespacePanel } from "../components/competitive/WhitespacePanel";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import type { CompetitiveProgressEvent, GapEvent, OverviewResponse, TrendsResponse } from "../types";
 
 interface SnapshotResponse {
@@ -395,35 +398,39 @@ export function CompetitivePage({
                 .sort((a, b) => (a.day < b.day ? -1 : 1));
 
               return (
-                <div className="trend-grid__brand" key={id}>
-                  <div className="trend-grid__name">{brandLabels[id] ?? id}</div>
-                  <table className="trend-mini">
-                    <tbody>
+                <Card className="trend-grid__brand" size="sm" key={id}>
+                  <CardHeader>
+                    <CardTitle>{brandLabels[id] ?? id}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                  <Table className="trend-mini">
+                    <TableBody>
                       {days.map((d) => {
                         const sentTone =
                           d.sent >= 0.25 ? "var(--success)" : d.sent <= -0.25 ? "var(--danger)" : "var(--muted)";
                         return (
-                          <tr key={d.day}>
-                            <td className="trend-mini__day">{d.day.slice(5)}</td>
-                            <td>
+                          <TableRow key={d.day}>
+                            <TableCell className="trend-mini__day">{d.day.slice(5)}</TableCell>
+                            <TableCell>
                               <span className="trend-mini__bar" aria-hidden="true">
                                 <span
                                   className="trend-mini__bar-fill"
                                   style={{ width: `${Math.min(100, d.sov * 100)}%` }}
                                 />
                               </span>
-                            </td>
-                            <td className="trend-mini__num">{(d.sov * 100).toFixed(0)}%</td>
-                            <td className="trend-mini__sent" style={{ color: sentTone }}>
+                            </TableCell>
+                            <TableCell className="trend-mini__num">{(d.sov * 100).toFixed(0)}%</TableCell>
+                            <TableCell className="trend-mini__sent" style={{ color: sentTone }}>
                               {d.sent >= 0 ? "+" : ""}
                               {d.sent.toFixed(2)}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
+                    </TableBody>
+                  </Table>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -432,10 +439,12 @@ export function CompetitivePage({
 
       <div className="block">
         <h2 className="block__title">Run configuration</h2>
+        <Card className="wide-panel">
+          <CardContent>
         <dl className="run-meta">
           <div>
             <dt>Account</dt>
-            <dd>{accountBrandName}</dd>
+            <dd><Badge variant="secondary">{accountBrandName}</Badge></dd>
           </div>
           <div>
             <dt>Competitors</dt>
@@ -450,6 +459,8 @@ export function CompetitivePage({
             <dd>{lastWindow ? `${lastWindow.windowStart.slice(0, 10)} → ${lastWindow.windowEnd.slice(0, 10)}` : "—"}</dd>
           </div>
         </dl>
+          </CardContent>
+        </Card>
       </div>
     </>
   );

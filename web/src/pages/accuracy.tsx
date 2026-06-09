@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type {
   AccuracyAlert,
   AccuracySummary,
@@ -16,6 +20,19 @@ const emptySummary: AccuracySummary = {
 
 function percentage(value: number | null, claims: number) {
   return value === null || claims === 0 ? "—" : `${Math.round(value * 100)}%`;
+}
+
+function SummaryCard({ label, value }: { label: string; value: number | string }) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
@@ -53,43 +70,41 @@ export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
   return (
     <div className="block">
       <div className="stat-row">
-        <div className="stat">
-          <div className="stat__label">Responses audited</div>
-          <div className="stat__value">{summary.responsesChecked}</div>
-        </div>
-        <div className="stat">
-          <div className="stat__label">Claims with sources</div>
-          <div className="stat__value">{summary.citedClaims} / {summary.totalClaims}</div>
-        </div>
-        <div className="stat">
-          <div className="stat__label">Citation coverage</div>
-          <div className="stat__value">{percentage(summary.citationCoverage, summary.totalClaims)}</div>
-        </div>
+        <SummaryCard label="Responses audited" value={summary.responsesChecked} />
+        <SummaryCard label="Claims with sources" value={`${summary.citedClaims} / ${summary.totalClaims}`} />
+        <SummaryCard label="Citation coverage" value={percentage(summary.citationCoverage, summary.totalClaims)} />
       </div>
 
-      <article className="card wide-panel">
-        <h2>Evidence coverage by provider</h2>
-        <p className="muted">
-          A citation makes a claim traceable, not automatically true. This audit checks whether each factual claim
-          has an inline source; source quality and contradictions still require review.
-        </p>
-        <table>
-          <thead><tr><th>Provider</th><th>Responses</th><th>Sourced claims</th><th>Coverage</th></tr></thead>
-          <tbody>
+      <Card className="wide-panel">
+        <CardHeader>
+          <CardTitle>Evidence coverage by provider</CardTitle>
+          <CardDescription>
+            A citation makes a claim traceable, not automatically true. This audit checks whether each factual claim
+            has an inline source; source quality and contradictions still require review.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+        <Table>
+          <TableHeader><TableRow><TableHead>Provider</TableHead><TableHead>Responses</TableHead><TableHead>Sourced claims</TableHead><TableHead>Coverage</TableHead></TableRow></TableHeader>
+          <TableBody>
             {providers.map((provider) => (
-              <tr key={provider.provider}>
-                <td>{provider.provider}</td>
-                <td>{provider.responsesChecked}</td>
-                <td>{provider.citedClaims} / {provider.totalClaims}</td>
-                <td>{percentage(provider.citationCoverage, provider.totalClaims)}</td>
-              </tr>
+              <TableRow key={provider.provider}>
+                <TableCell>{provider.provider}</TableCell>
+                <TableCell>{provider.responsesChecked}</TableCell>
+                <TableCell>{provider.citedClaims} / {provider.totalClaims}</TableCell>
+                <TableCell>{percentage(provider.citationCoverage, provider.totalClaims)}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </article>
+          </TableBody>
+        </Table>
+        </CardContent>
+      </Card>
 
-      <article className="card wide-panel">
-        <h2>Unsupported factual claims</h2>
+      <Card className="wide-panel">
+        <CardHeader>
+          <CardTitle>Unsupported factual claims</CardTitle>
+        </CardHeader>
+        <CardContent>
         {openAlerts.length === 0 ? (
           <p className="muted">
             {summary.responsesChecked === 0
@@ -97,21 +112,22 @@ export function AccuracyPage({ profile }: { profile: BusinessProfile }) {
               : "Every audited factual claim currently has an inline source."}
           </p>
         ) : (
-          <table>
-            <thead><tr><th>Provider</th><th>Risk</th><th>Claim without a source</th><th>Action</th></tr></thead>
-            <tbody>
+          <Table>
+            <TableHeader><TableRow><TableHead>Provider</TableHead><TableHead>Risk</TableHead><TableHead>Claim without a source</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+            <TableBody>
               {openAlerts.map((alert) => (
-                <tr key={alert.id}>
-                  <td>{alert.provider}</td>
-                  <td>{alert.severity}</td>
-                  <td>{alert.claimText}</td>
-                  <td><button type="button" onClick={() => acknowledge(alert.id)}>Acknowledge</button></td>
-                </tr>
+                <TableRow key={alert.id}>
+                  <TableCell>{alert.provider}</TableCell>
+                  <TableCell><Badge variant={alert.severity === "high" ? "destructive" : "outline"}>{alert.severity}</Badge></TableCell>
+                  <TableCell className="whitespace-normal">{alert.claimText}</TableCell>
+                  <TableCell><Button type="button" size="sm" variant="outline" onClick={() => acknowledge(alert.id)}>Acknowledge</Button></TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
-      </article>
+        </CardContent>
+      </Card>
       {error && <p className="error">{error}</p>}
     </div>
   );

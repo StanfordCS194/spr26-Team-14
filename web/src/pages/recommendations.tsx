@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { API_BASE } from "../api"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { NativeSelect } from "@/components/ui/native-select"
+import { ThumbsDownIcon, ThumbsUpIcon } from "@/components/app-icons"
 import type {
   BusinessProfile,
   Recommendation,
@@ -39,10 +44,14 @@ const normalizeEvidence = (text: string) =>
 type SummaryStatProps = { label: string; value: number }
 
 const SummaryStat = ({ label, value }: SummaryStatProps) => (
-  <div className="stat">
-    <div className="stat__label">{label}</div>
-    <div className="stat__value">{value}</div>
-  </div>
+  <Card size="sm">
+    <CardHeader>
+      <CardDescription>{label}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-semibold tracking-tight">{value}</div>
+    </CardContent>
+  </Card>
 )
 
 type RecommendationItemProps = {
@@ -56,63 +65,73 @@ type RecommendationItemProps = {
 const RecommendationItem = ({ rec, rank, rating, onRate, onStatus }: RecommendationItemProps) => {
   const titleId = `rec-title-${rec.id}`
   return (
-    <article className="card" aria-labelledby={titleId}>
-      <div className="chip-row" aria-label="Category, impact, and effort">
-        <span className="chip">{categoryLabel(rec.category)}</span>
-        <span className="chip">{rec.impact} impact</span>
-        <span className="chip">{rec.effort} effort</span>
-      </div>
-      <h3 className="rec-item__title" id={titleId}>
-        <span className="rec-item__rank">{rank}.</span>
-        {rec.title}
-      </h3>
-      <p className="subhead">Signal</p>
-      <p className="rec-item__body">{normalizeEvidence(rec.evidence)}</p>
-      <p className="subhead">Suggested action</p>
-      <p className="rec-item__body">{rec.action}</p>
-      <div className="inline-form">
-        <label>
-          Status
-          <select
-            value={rec.status}
-            onChange={(event) => onStatus(rec.id, event.target.value as RecommendationStatus)}
-          >
+    <Card aria-labelledby={titleId}>
+      <CardHeader>
+        <div className="flex flex-wrap gap-1.5" aria-label="Category, impact, and effort">
+          <Badge variant="secondary">{categoryLabel(rec.category)}</Badge>
+          <Badge variant={rec.impact === "high" ? "default" : "outline"}>{rec.impact} impact</Badge>
+          <Badge variant="outline">{rec.effort} effort</Badge>
+        </div>
+        <CardTitle id={titleId} className="flex items-center gap-2">
+          <span className="text-muted-foreground">{rank}.</span>
+          {rec.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div>
+          <p className="subhead">Signal</p>
+          <p className="rec-item__body">{normalizeEvidence(rec.evidence)}</p>
+        </div>
+        <div>
+          <p className="subhead">Suggested action</p>
+          <p className="rec-item__body">{rec.action}</p>
+        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium">Status</span>
+        <NativeSelect
+          value={rec.status}
+          onChange={(event) => onStatus(rec.id, event.target.value as RecommendationStatus)}
+        >
             <option value="proposed">Proposed</option>
             <option value="planned">Planned</option>
             <option value="in_progress">In progress</option>
             <option value="completed">Completed</option>
             <option value="dismissed">Dismissed</option>
-          </select>
-        </label>
-        {rec.targetProvider && <span className="chip">Target: {rec.targetProvider}</span>}
+        </NativeSelect>
+        {rec.targetProvider && <Badge variant="outline">Target: {rec.targetProvider}</Badge>}
         {rec.lift.delta !== null && (
-          <span className="chip">
+          <Badge variant="secondary">
             Measured lift: {rec.lift.delta >= 0 ? "+" : ""}{rec.lift.delta.toFixed(2)}
-          </span>
+          </Badge>
         )}
       </div>
       <div className="rec-feedback" aria-label={`Feedback for ${rec.title}`}>
         <span className="rec-feedback__label">Was this recommendation useful?</span>
         <div className="rec-feedback__actions">
-          <button
+          <Button
             type="button"
-            className={rating === "good" ? "feedback-button feedback-button--good active" : "feedback-button feedback-button--good"}
+            variant={rating === "good" ? "default" : "outline"}
+            size="sm"
             aria-pressed={rating === "good"}
             onClick={() => onRate(rec.id, "good")}
           >
+            <ThumbsUpIcon data-icon="inline-start" />
             Good
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={rating === "bad" ? "feedback-button feedback-button--bad active" : "feedback-button feedback-button--bad"}
+            variant={rating === "bad" ? "destructive" : "outline"}
+            size="sm"
             aria-pressed={rating === "bad"}
             onClick={() => onRate(rec.id, "bad")}
           >
+            <ThumbsDownIcon data-icon="inline-start" />
             Bad
-          </button>
+          </Button>
         </div>
       </div>
-    </article>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -191,23 +210,29 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
 
   if (loading) {
     return (
-      <article className="panel wide-panel">
-        <p className="muted">Recommendations</p>
-        <h2>Loading recommendations…</h2>
-      </article>
+      <Card className="wide-panel">
+        <CardHeader>
+          <CardDescription>Recommendations</CardDescription>
+          <CardTitle>Loading recommendations…</CardTitle>
+        </CardHeader>
+      </Card>
     )
   }
 
   if (recs.length === 0) {
     return (
-      <article className="panel wide-panel">
-        <p className="muted">Recommendations</p>
-        <h2>No recommendations for {profile.name} yet</h2>
+      <Card className="wide-panel">
+        <CardHeader>
+          <CardDescription>Recommendations</CardDescription>
+          <CardTitle>No recommendations for {profile.name} yet</CardTitle>
+        </CardHeader>
+        <CardContent>
         {loadError && <p className="error">{loadError}</p>}
         <p className="muted">
           Run a live benchmark on Benchmarking to surface gaps; we&rsquo;ll prioritise fix-it ideas here.
         </p>
-      </article>
+        </CardContent>
+      </Card>
     )
   }
 

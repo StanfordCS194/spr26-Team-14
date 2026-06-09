@@ -1,4 +1,5 @@
 import type { OverviewRow } from "../../types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function SentimentComparison({
   rows,
@@ -11,10 +12,13 @@ export function SentimentComparison({
   const sorted = [...rows].sort((a, b) => b.sentiment - a.sentiment);
 
   return (
-    <section className="card">
-      <h3>Sentiment</h3>
-      <p className="muted">Where each brand sits on a -1 to +1 valence axis.</p>
-      <div className="metric-list">
+    <Card>
+      <CardHeader>
+        <CardTitle>Sentiment</CardTitle>
+        <CardDescription>Where each brand sits on a -1 to +1 valence axis.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3">
         {sorted.map((row) => {
           const pct = ((row.sentiment + 1) / 2) * 100;
           const tone =
@@ -24,18 +28,21 @@ export function SentimentComparison({
                 ? "var(--danger)"
                 : "var(--ink)";
           return (
-            <div className="metric-row" key={row.brandId}>
-              <span className="metric-row__label">{label(row.brandId)}</span>
+            <div className="grid gap-1.5" key={row.brandId}>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium">{label(row.brandId)}</span>
+                <span className="tabular-nums" style={{ color: tone }}>
+                  {row.sentiment.toFixed(2)}
+                </span>
+              </div>
               <span className="sentiment-gauge" aria-hidden="true">
                 <span className="sentiment-gauge__pin" style={{ left: `${pct}%`, background: tone }} />
-              </span>
-              <span className="metric-row__num" style={{ color: tone }}>
-                {row.sentiment.toFixed(2)}
               </span>
             </div>
           );
         })}
-      </div>
-    </section>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,4 +1,5 @@
 import type { GapEvent } from "../../types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function WhitespacePanel({ gaps }: { gaps: GapEvent[] }) {
   const whitespace = gaps.filter((gap) => gap.gapType === "whitespace");
@@ -28,9 +29,13 @@ export function WhitespacePanel({ gaps }: { gaps: GapEvent[] }) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="stat">
-      <div className="stat__label">{label}</div>
-      <div className="stat__value">{value}</div>
-    </div>
+    <Card size="sm" className="min-w-0">
+      <CardHeader>
+        <CardTitle className="text-sm text-muted-foreground">{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      </CardContent>
+    </Card>
   );
 }
