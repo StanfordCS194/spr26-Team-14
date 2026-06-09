@@ -1,6 +1,26 @@
 import { useEffect, useState } from "react";
 import "./app.css";
 import { API_BASE } from "./api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
+import { Textarea } from "@/components/ui/textarea";
 import { AccuracyPage } from "./pages/accuracy";
 import { AdminPage } from "./pages/admin";
 import { CompetitivePage } from "./pages/competitive";
@@ -8,6 +28,18 @@ import { MonitoringPage } from "./pages/monitoring";
 import { RecommendationsPage } from "./pages/recommendations";
 import { SourcesPage } from "./pages/sources";
 import type { BusinessProfile, BusinessProfileInput } from "./types";
+import {
+  BinocularsIcon,
+  BuildingsIcon,
+  ChartLineUpIcon,
+  CheckCircleIcon,
+  GearSixIcon,
+  LightbulbIcon,
+  LinkSimpleIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  TrophyIcon,
+} from "./components/app-icons";
 import logoUrl from "../../assets/logo.svg";
 
 export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfileInput) => void }) {
@@ -27,7 +59,7 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
 
   return (
     <form
-      className="onboarding"
+      className="w-full max-w-xl"
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) {
@@ -40,53 +72,100 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
         }
       }}
     >
-      <h1>Set up your brand</h1>
-      <p className="muted">
-        We&rsquo;ll generate starter monitoring prompts and a competitive set from your website and brand
-        description.
-      </p>
-      <label>
-        Business name
-        <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-      </label>
-      <label>
-        Website
-        <input
-          type="url"
-          value={form.website}
-          onChange={(event) => setForm({ ...form, website: event.target.value })}
-        />
-      </label>
-      <label>
-        Description
-        <textarea
-          value={form.description}
-          onChange={(event) => setForm({ ...form, description: event.target.value })}
-          rows={4}
-        />
-      </label>
-      <label>
-        Top 5 competitors (one per line)
-        <textarea
-          value={form.competitors}
-          onChange={(event) => setForm({ ...form, competitors: event.target.value })}
-          rows={5}
-        />
-      </label>
-      <button type="submit" disabled={!canSubmit}>
-        Create profile
-      </button>
+      <Card className="border-border/70 bg-card/95 shadow-sm">
+        <CardHeader>
+          <Badge className="mb-2 w-fit" variant="secondary">
+            <SparkleDot /> Brand setup
+          </Badge>
+          <CardTitle className="text-2xl">Set up your brand</CardTitle>
+          <CardDescription>
+            We&rsquo;ll generate starter monitoring prompts and a competitive set from your website and brand
+            description.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="business-name">Business name</Label>
+            <Input
+              id="business-name"
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="business-website">Website</Label>
+            <Input
+              id="business-website"
+              type="url"
+              value={form.website}
+              onChange={(event) => setForm({ ...form, website: event.target.value })}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="business-description">Description</Label>
+            <Textarea
+              id="business-description"
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+              rows={4}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="business-competitors">Top 5 competitors (one per line)</Label>
+            <Textarea
+              id="business-competitors"
+              value={form.competitors}
+              onChange={(event) => setForm({ ...form, competitors: event.target.value })}
+              rows={5}
+            />
+          </div>
+          <Button type="submit" disabled={!canSubmit} className="w-fit">
+            <CheckCircleIcon data-icon="inline-start" />
+            Create profile
+          </Button>
+        </CardContent>
+      </Card>
     </form>
   );
 }
 
 const navItems = [
-  { key: "monitoring", label: "Monitoring", description: "AI mention frequency, sentiment, and trends." },
-  { key: "accuracy", label: "Citation Grounding", description: "Claim-level source coverage and unsupported-claim alerts." },
-  { key: "benchmarking", label: "Benchmarking", description: "Compare your brand against competitors in AI answers." },
-  { key: "recommendations", label: "Recommendations", description: "Prioritized fix-it ideas from detected gaps." },
-  { key: "sources", label: "Sources", description: "Reddit, publications, reviews, and other sources AI cites." },
-  { key: "admin", label: "Admin", description: "Internal feedback quality metrics and system health." },
+  {
+    key: "monitoring",
+    label: "Monitoring",
+    description: "AI mention frequency, sentiment, and trends.",
+    icon: ChartLineUpIcon,
+  },
+  {
+    key: "accuracy",
+    label: "Citation Grounding",
+    description: "Claim-level source coverage and unsupported-claim alerts.",
+    icon: ShieldCheckIcon,
+  },
+  {
+    key: "benchmarking",
+    label: "Benchmarking",
+    description: "Compare your brand against competitors in AI answers.",
+    icon: TrophyIcon,
+  },
+  {
+    key: "recommendations",
+    label: "Recommendations",
+    description: "Prioritized fix-it ideas from detected gaps.",
+    icon: LightbulbIcon,
+  },
+  {
+    key: "sources",
+    label: "Sources",
+    description: "Reddit, publications, reviews, and other sources AI cites.",
+    icon: LinkSimpleIcon,
+  },
+  {
+    key: "admin",
+    label: "Admin",
+    description: "Internal feedback quality metrics and system health.",
+    icon: GearSixIcon,
+  },
 ] as const;
 
 type PageKey = (typeof navItems)[number]["key"];
@@ -177,78 +256,108 @@ export function ProfileDashboard({
   const activeNav = navItems.find((item) => item.key === activePage) ?? navItems[0];
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar" aria-label="Primary navigation">
-        <div className="brand-lockup">
-          <img className="brand-mark" src={logoUrl} alt="" aria-hidden="true" />
-          <div className="brand-lockup__text">
-            <strong>Perception</strong>
-            <span>AI visibility</span>
+    <SidebarProvider>
+      <Sidebar collapsible="none" className="sticky top-0 h-svh border-r">
+        <SidebarHeader>
+          <div className="flex items-center gap-2.5 px-1 py-1">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-background ring-1 ring-border">
+              <img className="size-5 object-contain" src={logoUrl} alt="" aria-hidden="true" />
+            </div>
+            <div className="grid leading-tight">
+              <span className="text-sm font-semibold tracking-tight">Perception</span>
+              <span className="text-xs text-muted-foreground">AI visibility</span>
+            </div>
           </div>
-        </div>
+        </SidebarHeader>
 
-        <nav className="nav-list" aria-label="Sections">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={activePage === item.key ? "nav-item active" : "nav-item"}
-              onClick={() => onSelectPage(item.key)}
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={activePage === item.key}
+                        onClick={() => onSelectPage(item.key)}
+                        className="h-auto items-start gap-3 py-2 whitespace-normal"
+                      >
+                        <Icon className="mt-0.5" />
+                        <div className="grid gap-0.5">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-xs leading-snug font-normal whitespace-normal text-muted-foreground">
+                            {item.description}
+                          </span>
+                        </div>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter>
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+              <BuildingsIcon className="size-3.5" /> Active brand
+            </Label>
+            <NativeSelect
+              aria-label="Active business profile"
+              className="w-full"
+              value={profile.id}
+              onChange={(event) => onSelectProfile(event.target.value)}
             >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-footer">
-          <span className="sidebar-footer__label">Active brand</span>
-          <select
-            className="sidebar-profile"
-            aria-label="Active business profile"
-            value={profile.id}
-            onChange={(event) => onSelectProfile(event.target.value)}
-          >
-            {profiles.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="sidebar-add" onClick={onAddProfile}>
-            + Add brand
-          </button>
-        </div>
-      </aside>
-
-      <section className="workspace">
-        <header className="topbar">
-          <div>
-            <p className="topbar__eyebrow">
-              <span className="topbar__brand">{profile.name}</span>
-            </p>
-            <h1>{activeNav.label}</h1>
-            <p className="topbar__sub">{activeNav.description}</p>
+              {profiles.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </NativeSelect>
+            <Button type="button" variant="outline" size="sm" onClick={onAddProfile}>
+              <PlusIcon data-icon="inline-start" />
+              Add brand
+            </Button>
           </div>
+        </SidebarFooter>
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6">
+          <Badge variant="outline" className="mb-2">
+            <BinocularsIcon data-icon="inline-start" />
+            {profile.name}
+          </Badge>
+          <h1 className="text-2xl font-semibold tracking-tight">{activeNav.label}</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{activeNav.description}</p>
         </header>
 
-        <section hidden={activePage !== "benchmarking"}>
-          <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
-        </section>
+        <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 md:px-6">
+          <section hidden={activePage !== "benchmarking"} className="grid gap-6">
+            <CompetitivePage businessName={profile.name} businessProfileId={profile.id} />
+          </section>
 
-        {activePage === "monitoring" ? (
-          <MonitoringPage profile={profile} />
-        ) : activePage === "accuracy" ? (
-          <AccuracyPage profile={profile} />
-        ) : activePage === "recommendations" ? (
-          <RecommendationsPage profile={profile} />
-        ) : activePage === "sources" ? (
-          <SourcesPage profile={profile} />
-        ) : activePage === "admin" ? (
-          <AdminPage profile={profile} />
-        ) : null}
+          {activePage === "monitoring" ? (
+            <MonitoringPage profile={profile} />
+          ) : activePage === "accuracy" ? (
+            <AccuracyPage profile={profile} />
+          ) : activePage === "recommendations" ? (
+            <RecommendationsPage profile={profile} />
+          ) : activePage === "sources" ? (
+            <SourcesPage profile={profile} />
+          ) : activePage === "admin" ? (
+            <AdminPage profile={profile} />
+          ) : null}
 
-        {error && <p className="error">{error}</p>}
-      </section>
-    </main>
+          {error && <p className="error">{error}</p>}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
+}
+
+function SparkleDot() {
+  return <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />;
 }

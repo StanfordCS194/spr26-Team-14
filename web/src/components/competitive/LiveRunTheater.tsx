@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const TOTAL_PROMPTS_PER_BRAND = 20;
 
@@ -34,14 +36,14 @@ export function LiveRunTheater({ busy, progressStatus, judgeLines, progressByBra
   }
 
   return (
-    <section className="card theater">
-      <header className="theater__head">
+    <section className="grid gap-4">
+      <div className="theater__head">
         <div>
-          <span className="theater__kicker">Live Run</span>
-          <h3 className="theater__title">All six brands streaming in parallel</h3>
+          <Badge variant="secondary">Live Run</Badge>
+          <h2 className="mt-2 text-sm font-semibold tracking-tight">All six brands streaming in parallel</h2>
         </div>
-        <span className="theater__status">{progressStatus}</span>
-      </header>
+        <Badge variant="outline">{progressStatus}</Badge>
+      </div>
 
       {judgeLines.length > 0 && (
         <aside className="theater__judge">
@@ -67,12 +69,7 @@ export function LiveRunTheater({ busy, progressStatus, judgeLines, progressByBra
                   {box.completedPrompts}/{TOTAL_PROMPTS_PER_BRAND}
                 </span>
               </div>
-              <div className="theater__progress" aria-hidden="true">
-                <div
-                  className="theater__progress-fill"
-                  style={{ width: `${pct}%`, background: accent }}
-                />
-              </div>
+              <Progress value={pct} style={{ "--primary": accent } as React.CSSProperties} aria-label={`${box.brandName} progress`} />
               <p className="theater__col-status">{box.status}</p>
               <pre className="theater__stream" data-empty={box.lines.length === 0}>
                 {box.lines.length === 0 ? "Waiting for streamed output…" : box.lines.join("\n")}

@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Section } from "@/components/dashboard";
+import { PlayIcon, PlusCircleIcon } from "@/components/app-icons";
 
 interface Props {
   onCreate: (input: { accountBrandName: string; competitorNames: string[] }) => Promise<void>;
@@ -30,71 +36,69 @@ export function CompetitiveSetPicker({
   }, [accountBrandName, competitorNames]);
 
   return (
-    <section className="card wide-panel picker">
-      <div className="picker__head">
-        <h3>Competitive set</h3>
-        <span className="picker__count">5 competitors</span>
-      </div>
-      <p className="muted picker__hint">
-        Pick your brand and five competitors. We&rsquo;ll fan twenty perception prompts across every brand and
-        compare the answers.
-      </p>
+    <Section
+      title="Competitive set"
+      description="Pick your brand and five competitors. We'll fan twenty perception prompts across every brand and compare the answers."
+      action={<Badge variant="secondary">5 competitors</Badge>}
+    >
+      <div className="grid gap-5">
+        <div className="grid gap-2">
+          <Label htmlFor="account-brand">Your brand</Label>
+          <Input
+            id="account-brand"
+            value={accountBrandName}
+            onChange={(e) => setAccountBrandName(e.target.value)}
+            placeholder="e.g. Netflix"
+            spellCheck={false}
+          />
+        </div>
 
-      <div className="picker__field picker__field--solo">
-        <label className="picker__label">Your brand</label>
-        <input
-          className="picker__input"
-          value={accountBrandName}
-          onChange={(e) => setAccountBrandName(e.target.value)}
-          placeholder="e.g. Netflix"
-          spellCheck={false}
-        />
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {competitorNames.map((name, idx) => (
+            <div className="grid gap-2" key={idx}>
+              <Label htmlFor={`competitor-${idx}`} className="flex items-center gap-2">
+                <Badge variant="outline" className="picker__num size-5 rounded-full p-0">{idx + 1}</Badge>
+                Competitor
+              </Label>
+              <Input
+                id={`competitor-${idx}`}
+                value={name}
+                onChange={(e) => {
+                  const next = [...competitorNames];
+                  next[idx] = e.target.value;
+                  setCompetitorNames(next);
+                }}
+                spellCheck={false}
+              />
+            </div>
+          ))}
+        </div>
 
-      <div className="picker__competitors">
-        {competitorNames.map((name, idx) => (
-          <div className="picker__field" key={idx}>
-            <label className="picker__label">
-              <span className="picker__num">{idx + 1}</span>
-              Competitor
-            </label>
-            <input
-              className="picker__input"
-              value={name}
-              onChange={(e) => {
-                const next = [...competitorNames];
-                next[idx] = e.target.value;
-                setCompetitorNames(next);
-              }}
-              spellCheck={false}
-            />
-          </div>
-        ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => onCreate({ accountBrandName: accountBrandName.trim(), competitorNames })}
+            disabled={!canSubmit || busy}
+          >
+            <PlayIcon data-icon="inline-start" />
+            {busy ? "Running benchmark…" : "Run benchmark"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onSave?.(competitorNames)}
+            disabled={!canSubmit || busy || !onSave}
+          >
+            <PlusCircleIcon data-icon="inline-start" />
+            Save competitors
+          </Button>
+          {busy && (
+            <span className="text-sm text-muted-foreground">
+              Streaming brand summaries and judge comparisons in parallel.
+            </span>
+          )}
+        </div>
       </div>
-
-      <div className="picker__actions">
-        <button
-          type="button"
-          className="picker__primary"
-          onClick={() => onCreate({ accountBrandName: accountBrandName.trim(), competitorNames })}
-          disabled={!canSubmit || busy}
-        >
-          {busy ? "Running benchmark…" : "Run benchmark"}
-        </button>
-        <button
-          type="button"
-          className="picker__secondary"
-          onClick={() => onSave?.(competitorNames)}
-          disabled={!canSubmit || busy || !onSave}
-        >
-          Save competitors
-        </button>
-        {busy && (
-          <span className="picker__status">
-            Streaming brand summaries and judge comparisons in parallel.
-          </span>
-        )}
-      </div>
-    </section>
+    </Section>
   );
 }

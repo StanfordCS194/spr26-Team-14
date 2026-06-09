@@ -5,6 +5,9 @@ import { LiveRunTheater } from "../components/competitive/LiveRunTheater";
 import { SentimentComparison } from "../components/competitive/SentimentComparison";
 import { ShareOfVoiceChart } from "../components/competitive/ShareOfVoiceChart";
 import { WhitespacePanel } from "../components/competitive/WhitespacePanel";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Section } from "@/components/dashboard";
 import type { CompetitiveProgressEvent, GapEvent, OverviewResponse, TrendsResponse } from "../types";
 
 interface SnapshotResponse {
@@ -348,33 +351,29 @@ export function CompetitivePage({
 
       {overview && (
         <>
-          <div className="block">
-            <h2 className="block__title">At a glance</h2>
-            <div className="charts-grid">
+          <Section title="At a glance">
+            <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
               <ShareOfVoiceChart rows={overview.rows} brandLabels={brandLabels} />
               <SentimentComparison rows={overview.rows} brandLabels={brandLabels} />
             </div>
-          </div>
+          </Section>
 
-          <div className="block">
-            <h2 className="block__title">Feature signal &amp; gaps</h2>
+          <Section title="Feature signal & gaps">
             <FeatureGapTable
               rows={overview.rows}
               gaps={gaps}
               brandLabels={brandLabels}
               accountBrandName={accountBrandName}
             />
-          </div>
+          </Section>
 
-          <div className="block">
-            <h2 className="block__title">Whitespace</h2>
+          <Section title="Whitespace">
             <WhitespacePanel gaps={gaps} />
-          </div>
+          </Section>
         </>
       )}
 
-      <div className="block">
-        <h2 className="block__title">Trend snapshot</h2>
+      <Section title="Trend snapshot">
         {!trends || Object.keys(trends.seriesByBrand).length === 0 ? (
           <p className="muted">Run a benchmark to populate trend lines.</p>
         ) : (
@@ -397,45 +396,44 @@ export function CompetitivePage({
               return (
                 <div className="trend-grid__brand" key={id}>
                   <div className="trend-grid__name">{brandLabels[id] ?? id}</div>
-                  <table className="trend-mini">
-                    <tbody>
+                  <Table className="trend-mini">
+                    <TableBody>
                       {days.map((d) => {
                         const sentTone =
                           d.sent >= 0.25 ? "var(--success)" : d.sent <= -0.25 ? "var(--danger)" : "var(--muted)";
                         return (
-                          <tr key={d.day}>
-                            <td className="trend-mini__day">{d.day.slice(5)}</td>
-                            <td>
+                          <TableRow key={d.day}>
+                            <TableCell className="trend-mini__day">{d.day.slice(5)}</TableCell>
+                            <TableCell>
                               <span className="trend-mini__bar" aria-hidden="true">
                                 <span
                                   className="trend-mini__bar-fill"
                                   style={{ width: `${Math.min(100, d.sov * 100)}%` }}
                                 />
                               </span>
-                            </td>
-                            <td className="trend-mini__num">{(d.sov * 100).toFixed(0)}%</td>
-                            <td className="trend-mini__sent" style={{ color: sentTone }}>
+                            </TableCell>
+                            <TableCell className="trend-mini__num">{(d.sov * 100).toFixed(0)}%</TableCell>
+                            <TableCell className="trend-mini__sent" style={{ color: sentTone }}>
                               {d.sent >= 0 ? "+" : ""}
                               {d.sent.toFixed(2)}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               );
             })}
           </div>
         )}
-      </div>
+      </Section>
 
-      <div className="block">
-        <h2 className="block__title">Run configuration</h2>
+      <Section title="Run configuration">
         <dl className="run-meta">
           <div>
             <dt>Account</dt>
-            <dd>{accountBrandName}</dd>
+            <dd><Badge variant="secondary">{accountBrandName}</Badge></dd>
           </div>
           <div>
             <dt>Competitors</dt>
@@ -450,7 +448,7 @@ export function CompetitivePage({
             <dd>{lastWindow ? `${lastWindow.windowStart.slice(0, 10)} → ${lastWindow.windowEnd.slice(0, 10)}` : "—"}</dd>
           </div>
         </dl>
-      </div>
+      </Section>
     </>
   );
 }
