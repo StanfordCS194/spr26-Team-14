@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { expect, test } from "bun:test";
+import { accuracyGuard } from "../db/accuracy-guard";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
 import { monitoringRuns } from "../db/monitoring-runs";
@@ -61,6 +62,24 @@ test("creates and lists business profiles", async () => {
   expect(businessProfiles.get(created.id)?.website).toBe("https://acme.test");
 });
 
+test("onboards competitors and initial ground truth with the profile", async () => {
+  const createRes = await app.request("/business-profiles", {
+    method: "POST",
+    body: JSON.stringify({
+      name: `Onboard ${crypto.randomUUID()}`,
+      website: "https://onboard.test",
+      description: "Complete onboarding profile.",
+      competitorNames: ["One", "Two", "Three", "Four", "Five"],
+      facts: [{ category: "pricing", label: "starting price", value: "$49" }],
+    }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(createRes.status).toBe(201);
+  const profile = await createRes.json();
+  expect(businessProfiles.competitors(profile.id)).toEqual(["One", "Two", "Three", "Four", "Five"]);
+  expect(accuracyGuard.facts(profile.id)[0]?.value).toBe("$49");
+});
+
 test("saves competitors for a business profile", async () => {
   const profile = businessProfiles.create({
     name: `Bench ${crypto.randomUUID()}`,
@@ -96,6 +115,77 @@ test("adds monitoring prompts for a business profile", async () => {
   const listBody = await listRes.json();
   expect(listBody.prompts).toHaveLength(1);
   expect(listBody.prompts[0].mentionSentiment).toBeTruthy();
+});
+
+test("persists prompt metadata, rejects near duplicates, and skips paused prompts", async () => {
+  const profile = businessProfiles.create({
+    name: `Prompt Config ${crypto.randomUUID()}`,
+    website: "https://prompt-config.test",
+    description: "Prompt configuration profile.",
+  });
+  const createRes = await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({
+      prompt: "What is the best AI visibility platform for marketing teams?",
+      category: "recommendation",
+      cadence: "weekly",
+      active: true,
+    }),
+    headers: { "content-type": "application/json" },
+  });
+  const prompt = await createRes.json();
+  expect(prompt.category).toBe("recommendation");
+  expect(prompt.cadence).toBe("weekly");
+
+  const duplicateRes = await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({
+      prompt: "What is the best AI visibility platform for marketing teams",
+      category: "custom",
+      cadence: "daily",
+    }),
+    headers: { "content-type": "application/json" },
+  });
+  expect(duplicateRes.status).toBe(409);
+
+  const pauseRes = await app.request(`/business-profiles/${profile.id}/monitoring-prompts/${prompt.id}`, {
+    method: "PUT",
+    body: JSON.stringify({ ...prompt, active: false }),
+    headers: { "content-type": "application/json" },
+  });
+  expect((await pauseRes.json()).active).toBeFalse();
+  const runBody = await (
+    await app.request(`/business-profiles/${profile.id}/monitoring/runs`, { method: "POST" })
+  ).json();
+  expect(runBody.attempts).toEqual([]);
+});
+
+test("due-only monitoring honors daily and weekly cadence", async () => {
+  const profile = businessProfiles.create({
+    name: `Cadence ${crypto.randomUUID()}`,
+    website: "https://cadence.test",
+    description: "Cadence test profile.",
+  });
+  await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({
+      prompt: "How visible is this brand in current AI recommendations?",
+      category: "recommendation",
+      cadence: "daily",
+    }),
+    headers: { "content-type": "application/json" },
+  });
+  const firstRun = await app.request(`/business-profiles/${profile.id}/monitoring/runs`, { method: "POST" });
+  expect((await firstRun.json()).attempts).toHaveLength(3);
+
+  const dueRun = await app.request(`/business-profiles/${profile.id}/monitoring/runs`, {
+    method: "POST",
+    body: JSON.stringify({ dueOnly: true }),
+    headers: { "content-type": "application/json" },
+  });
+  const dueBody = await dueRun.json();
+  expect(dueBody.runId).toBeNull();
+  expect(dueBody.attempts).toEqual([]);
 });
 
 test("saves recommendation feedback and reports admin metrics", async () => {

@@ -17,13 +17,29 @@ import {
 import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
 import { isLLMProviderConfigured } from "../lib/llm-providers";
 
+const factInputSchema = z.object({
+  category: z.enum(["pricing", "feature", "executive", "company", "custom"]),
+  label: z.string().trim().min(2),
+  value: z.string().trim().min(1),
+});
+
 const profileSchema = z.object({
   name: z.string().trim().min(1),
-  website: z.string().trim().min(1),
+  website: z.string().trim().url(),
   description: z.string().trim().min(1),
+  competitorNames: z.array(z.string().trim().min(1)).length(5).optional(),
+  facts: z.array(factInputSchema).max(20).optional(),
 });
 
 export const businessRoutes = new Hono();
+
+businessRoutes.onError((error, c) => {
+  if (error instanceof z.ZodError) {
+    return c.json({ error: "Invalid request.", issues: error.issues }, 400);
+  }
+  console.error(error);
+  return c.json({ error: "Unexpected server error." }, 500);
+});
 
 businessRoutes.get("/business-profiles", (c) => {
   return c.json({ profiles: businessProfiles.list() });
@@ -37,6 +53,12 @@ businessRoutes.get("/business-profiles/:id", (c) => {
 businessRoutes.post("/business-profiles", async (c) => {
   const body = profileSchema.parse(await c.req.json());
   const profile = businessProfiles.create(body);
+  if (body.competitorNames) {
+    businessProfiles.saveCompetitors(profile.id, body.competitorNames);
+  }
+  for (const fact of body.facts ?? []) {
+    accuracyGuard.createFact(profile.id, fact);
+  }
   if (process.env.DISABLE_ONBOARDING_PROMPT_GENERATION !== "1") {
     void generateMonitoringPrompts(profile);
   }
@@ -74,6 +96,9 @@ businessRoutes.put("/business-profiles/:id/competitors", async (c) => {
 
 const promptSchema = z.object({
   prompt: z.string().trim().min(8),
+  category: z.enum(["comparison", "recommendation", "feature", "pricing", "custom"]).default("custom"),
+  cadence: z.enum(["daily", "weekly"]).default("daily"),
+  active: z.boolean().default(true),
 });
 
 const recommendationFeedbackSchema = z.object({
@@ -85,11 +110,7 @@ const recommendationStatusSchema = z.object({
   status: z.enum(["proposed", "planned", "in_progress", "completed", "dismissed"]),
 });
 
-const factSchema = z.object({
-  category: z.enum(["pricing", "feature", "executive", "company", "custom"]),
-  label: z.string().trim().min(2),
-  value: z.string().trim().min(1),
-});
+const factSchema = factInputSchema;
 
 const factUpdateSchema = factSchema.extend({
   active: z.boolean(),
@@ -104,7 +125,7 @@ businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
   return c.json({
     status: state.monitoring_status,
     error: state.error,
-    prompts: monitoringPrompts.list(id),
+    prompts: monitoringPrompts.list(id, true),
     history: monitoringHistory(id),
     summary: monitoringSummary(id),
   });
@@ -118,10 +139,13 @@ businessRoutes.post("/business-profiles/:id/monitoring/runs", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const runSchema = z.object({
     providers: z.array(z.enum(["openai", "anthropic", "gemini"])).min(1).default(defaultMonitoringProviders),
+    dueOnly: z.boolean().default(false),
   });
-  const { providers } = runSchema.parse(body);
-  const run = await runMonitoring(profile, providers);
-  return c.json(run);
+  const { providers, dueOnly } = runSchema.parse(body);
+  const run = await runMonitoring(profile, providers, dueOnly);
+  return run.status === "failed"
+    ? c.json({ ...run, error: "All selected providers failed. Check API keys and provider configuration." }, 503)
+    : c.json(run);
 });
 
 businessRoutes.get("/business-profiles/:id/monitoring/history", (c) => {
@@ -138,7 +162,25 @@ businessRoutes.post("/business-profiles/:id/monitoring-prompts", async (c) => {
     return c.json({ error: "Business profile not found." }, 404);
   }
   const body = promptSchema.parse(await c.req.json());
-  return c.json(monitoringPrompts.add(id, body.prompt), 201);
+  const duplicate = monitoringPrompts.findDuplicate(id, body.prompt);
+  if (duplicate) {
+    return c.json({ error: "A near-identical prompt is already configured.", duplicate }, 409);
+  }
+  return c.json(monitoringPrompts.add(id, body), 201);
+});
+
+businessRoutes.put("/business-profiles/:id/monitoring-prompts/:promptId", async (c) => {
+  const id = c.req.param("id");
+  if (!businessProfiles.get(id)) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const body = promptSchema.parse(await c.req.json());
+  const duplicate = monitoringPrompts.findDuplicate(id, body.prompt, c.req.param("promptId"));
+  if (duplicate) {
+    return c.json({ error: "A near-identical prompt is already configured.", duplicate }, 409);
+  }
+  const prompt = monitoringPrompts.update(id, c.req.param("promptId"), body);
+  return prompt ? c.json(prompt) : c.json({ error: "Monitoring prompt not found." }, 404);
 });
 
 businessRoutes.get("/business-profiles/:id/facts", (c) => {

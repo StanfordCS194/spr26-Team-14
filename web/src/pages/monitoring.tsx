@@ -90,6 +90,8 @@ export function SentimentTrend({ history }: { history: MonitoringHistoryPoint[] 
 export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
   const [data, setData] = useState<MonitoringResponse | null>(null);
   const [newPrompt, setNewPrompt] = useState("");
+  const [newCategory, setNewCategory] = useState<MonitoringResponse["prompts"][number]["category"]>("custom");
+  const [newCadence, setNewCadence] = useState<MonitoringResponse["prompts"][number]["cadence"]>("daily");
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
 
@@ -127,7 +129,7 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
       const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, category: newCategory, cadence: newCadence, active: true }),
       });
       if (!res.ok) {
         setError("Could not add prompt.");
@@ -138,6 +140,15 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
     } catch {
       setError("Could not add prompt. Check your connection and try again.");
     }
+  }
+
+  async function togglePrompt(item: MonitoringResponse["prompts"][number]) {
+    const res = await fetch(`${API_BASE}/business-profiles/${profile.id}/monitoring-prompts/${item.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...item, active: !item.active }),
+    });
+    if (res.ok) await load();
   }
 
   async function runLiveMonitoring() {
@@ -200,18 +211,24 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
         <thead>
           <tr>
             <th>Prompt</th>
+            <th>Category</th>
+            <th>Cadence</th>
             <th>Mention</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {data.prompts.map((item) => (
             <tr key={item.id}>
               <td>{item.prompt}</td>
+              <td>{item.category}</td>
+              <td>{item.cadence}</td>
               <td>
                 <span className={`sentiment sentiment-${item.mentionSentiment}`}>
                   {sentimentLabel(item.mentionSentiment)}
                 </span>
               </td>
+              <td><button type="button" onClick={() => togglePrompt(item)}>{item.active ? "Active" : "Paused"}</button></td>
             </tr>
           ))}
         </tbody>
@@ -254,6 +271,17 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
           value={newPrompt}
           onChange={(event) => setNewPrompt(event.target.value)}
         />
+        <select value={newCategory} onChange={(event) => setNewCategory(event.target.value as typeof newCategory)}>
+          <option value="comparison">Comparison</option>
+          <option value="recommendation">Recommendation</option>
+          <option value="feature">Feature</option>
+          <option value="pricing">Pricing</option>
+          <option value="custom">Custom</option>
+        </select>
+        <select value={newCadence} onChange={(event) => setNewCadence(event.target.value as typeof newCadence)}>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
         <button type="button" onClick={addPrompt} disabled={!newPrompt.trim()}>
           Add prompt
         </button>

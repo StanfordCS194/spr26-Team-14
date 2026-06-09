@@ -10,8 +10,19 @@ export interface MonitoringPrompt {
   id: string;
   businessProfileId: string;
   prompt: string;
+  category: "comparison" | "recommendation" | "feature" | "pricing" | "custom";
+  cadence: "daily" | "weekly";
+  active: boolean;
   mentionSentiment: "positive" | "negative" | "neutral";
   createdAt: string;
+}
+
+export interface BusinessProfileInput {
+  name: string;
+  website: string;
+  description: string;
+  competitorNames: string[];
+  facts: Array<{ category: FactCategory; label: string; value: string }>;
 }
 
 export interface MonitoringResponse {
