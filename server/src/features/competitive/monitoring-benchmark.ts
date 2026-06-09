@@ -11,6 +11,7 @@ export function buildMonitoringBenchmark(profile: BusinessProfile, windowDays = 
   const windowEnd = new Date();
   const windowStart = new Date(windowEnd.getTime() - windowDays * 24 * 60 * 60 * 1000);
   const competitors = businessProfiles.competitors(profile.id);
+  const competitorUpdatedAt = businessProfiles.competitorUpdatedAt(profile.id);
   const brands = [
     { id: profile.id, name: profile.name },
     ...competitors.map((name) => ({ id: competitorId(name), name })),
@@ -20,7 +21,8 @@ export function buildMonitoringBenchmark(profile: BusinessProfile, windowDays = 
       attempt.status === "success" &&
       attempt.rawResponse &&
       new Date(attempt.createdAt) >= windowStart &&
-      new Date(attempt.createdAt) <= windowEnd,
+      new Date(attempt.createdAt) <= windowEnd &&
+      (!competitorUpdatedAt || attempt.createdAt >= competitorUpdatedAt),
   );
 
   const mentionCounts = Object.fromEntries(brands.map((brand) => [brand.id, 0])) as Record<string, number>;
@@ -106,6 +108,7 @@ export function buildMonitoringBenchmark(profile: BusinessProfile, windowDays = 
             competitorBrandId: item.brand.id,
             promptRunId: attempt.id,
             featureKey: praisedFeature,
+            categoryKey: attempt.provider,
             evidence: [attempt.rawResponse!.slice(0, 280)],
             confidence: 0.8,
             detectedAt: attempt.createdAt,

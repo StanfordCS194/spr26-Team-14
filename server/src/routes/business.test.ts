@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { expect, test } from "bun:test";
-import { accuracyGuard } from "../db/accuracy-guard";
+import { citationGrounding } from "../db/citation-grounding";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
 import { monitoringRuns } from "../db/monitoring-runs";
 import { profileRecommendations } from "../db/profile-recommendations";
 import { store } from "../db/store";
+import { analyzeCitationGrounding, recordCitationGrounding } from "../features/accuracy/analyze-citations";
 import { recordAttemptSources } from "../features/sources/source-attribution";
 import { businessRoutes } from "./business";
 
@@ -38,6 +39,7 @@ function recordSourceForProfile(
   });
   monitoringRuns.finish(runId, "completed");
   recordAttemptSources(profile, attempt);
+  return attempt;
 }
 
 test("creates and lists business profiles", async () => {
@@ -62,7 +64,7 @@ test("creates and lists business profiles", async () => {
   expect(businessProfiles.get(created.id)?.website).toBe("https://acme.test");
 });
 
-test("onboards competitors and initial ground truth with the profile", async () => {
+test("onboards competitors with the profile", async () => {
   const createRes = await app.request("/business-profiles", {
     method: "POST",
     body: JSON.stringify({
@@ -70,14 +72,12 @@ test("onboards competitors and initial ground truth with the profile", async () 
       website: "https://onboard.test",
       description: "Complete onboarding profile.",
       competitorNames: ["One", "Two", "Three", "Four", "Five"],
-      facts: [{ category: "pricing", label: "starting price", value: "$49" }],
     }),
     headers: { "content-type": "application/json" },
   });
   expect(createRes.status).toBe(201);
   const profile = await createRes.json();
   expect(businessProfiles.competitors(profile.id)).toEqual(["One", "Two", "Three", "Four", "Five"]);
-  expect(accuracyGuard.facts(profile.id)[0]?.value).toBe("$49");
 });
 
 test("saves competitors for a business profile", async () => {
@@ -273,18 +273,6 @@ test("returns live recommendations and source attributions for matching brand", 
     action: "Publish a comparison page.",
     createdAt: new Date().toISOString(),
   });
-  profileRecommendations.upsert({
-    businessProfileId: profile.id,
-    sourceGapEventId: "gap-live",
-    sourceAttemptId: crypto.randomUUID(),
-    title: "Close the value gap",
-    category: "content",
-    impact: "high",
-    effort: "low",
-    evidence: "A competitor owns value perception.",
-    action: "Publish a comparison page.",
-    targetProvider: "openai",
-  });
   store.citedSources.push({
     id: "src-live",
     brandId: brand.id,
@@ -296,8 +284,20 @@ test("returns live recommendations and source attributions for matching brand", 
     sourceType: "publication",
     createdAt: new Date().toISOString(),
   });
-  recordSourceForProfile(profile, "https://www.example.com/streaming?utm_source=test");
+  const sourceAttempt = recordSourceForProfile(profile, "https://www.example.com/streaming?utm_source=test");
   recordSourceForProfile(profile, "https://example.com/streaming/?ref=duplicate", "gemini");
+  profileRecommendations.upsert({
+    businessProfileId: profile.id,
+    sourceGapEventId: "gap-live",
+    sourceAttemptId: sourceAttempt.id,
+    title: "Close the value gap",
+    category: "content",
+    impact: "high",
+    effort: "low",
+    evidence: "A competitor owns value perception.",
+    action: "Publish a comparison page.",
+    targetProvider: "openai",
+  });
 
   const recRes = await app.request(`/business-profiles/${profile.id}/recommendations`);
   expect(recRes.status).toBe(200);
@@ -316,6 +316,39 @@ test("returns live recommendations and source attributions for matching brand", 
   ).json();
   expect(geminiSources.sources).toHaveLength(1);
   expect(geminiSources.sources[0].citationsThisWeek).toBe(1);
+});
+
+test("backfills citations and matches short brand names on phrase boundaries", async () => {
+  const profile = businessProfiles.create({
+    name: `Boundary Brand ${crypto.randomUUID()}`,
+    website: "https://boundary.test",
+    description: "Source boundary test profile.",
+  });
+  businessProfiles.saveCompetitors(profile.id, ["AI", "Beta", "Gamma", "Delta", "Epsilon"]);
+  const prompt = monitoringPrompts.add(profile.id, "Which source covers this brand?");
+  const runId = monitoringRuns.start(profile.id);
+  monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider: "openai",
+    model: "mock",
+    status: "success",
+    rawResponse: `${profile.name} said the source is useful. https://boundary.example/article`,
+    score: 0.5,
+    mentionSentiment: "positive",
+    mentionPosition: 0,
+    recommended: false,
+    featureSentiment: {},
+    sources: ["https://boundary.example/article"],
+    error: null,
+  });
+  monitoringRuns.finish(runId, "completed");
+
+  const body = await (await app.request(`/business-profiles/${profile.id}/sources`)).json();
+  expect(body.sources).toHaveLength(1);
+  expect(body.sources[0].brandsMentioned).toContain(profile.name);
+  expect(body.sources[0].brandsMentioned).not.toContain("AI");
 });
 
 test("keeps recommendations and sources isolated for duplicate profile names", async () => {
@@ -578,40 +611,45 @@ test("tracks recommendation lifecycle and before-after monitoring lift", async (
   expect(updated.lift.delta).toBeCloseTo(1.2);
 });
 
-test("creates deduplicated Accuracy Guard alerts from profile facts", async () => {
+test("measures claim-level citation coverage and alerts on unsupported claims", async () => {
   const profile = businessProfiles.create({
-    name: `Accuracy ${crypto.randomUUID()}`,
+    name: `Grounding ${crypto.randomUUID()}`,
     website: "https://accuracy.test",
-    description: "Accuracy Guard test profile.",
+    description: "Citation grounding test profile.",
   });
-  const factRes = await app.request(`/business-profiles/${profile.id}/facts`, {
-    method: "POST",
-    body: JSON.stringify({
-      category: "feature",
-      label: "customer support",
-      value: "24/7 phone support",
-    }),
-    headers: { "content-type": "application/json" },
+  const prompt = monitoringPrompts.add(profile.id, "What is the starting price?");
+  const runId = monitoringRuns.start(profile.id);
+  const attempt = monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider: "openai",
+    model: "mock",
+    status: "success",
+    rawResponse: "The starting price is $49 [https://example.com/pricing]. Support is available every day.",
+    score: 0,
+    mentionSentiment: "neutral",
+    mentionPosition: 0,
+    recommended: false,
+    featureSentiment: {},
+    sources: ["https://example.com/pricing"],
+    error: null,
   });
-  expect(factRes.status).toBe(201);
-
-  await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
-    method: "POST",
-    body: JSON.stringify({ prompt: "Which platform has reliable customer support?" }),
-    headers: { "content-type": "application/json" },
-  });
-  const runRes = await app.request(`/business-profiles/${profile.id}/monitoring/runs`, {
-    method: "POST",
-    body: JSON.stringify({ providers: ["openai", "anthropic", "gemini"] }),
-    headers: { "content-type": "application/json" },
-  });
-  expect(runRes.status).toBe(200);
+  const analysis = recordCitationGrounding(attempt);
+  expect(analysis?.totalClaims).toBe(2);
+  expect(analysis?.citedClaims).toBe(1);
+  expect(analysis?.unsupportedClaims[0]?.text).toBe("Support is available every day.");
 
   const alertsRes = await app.request(`/business-profiles/${profile.id}/accuracy-alerts`);
   const alertsBody = await alertsRes.json();
   expect(alertsBody.alerts).toHaveLength(1);
-  expect(alertsBody.alerts[0].severity).toBe("medium");
-  expect(alertsBody.alerts[0].expectedValue).toBe("24/7 phone support");
+  expect(alertsBody.alerts[0].provider).toBe("openai");
+  expect(alertsBody.summary).toEqual({
+    responsesChecked: 1,
+    totalClaims: 2,
+    citedClaims: 1,
+    citationCoverage: 0.5,
+  });
   expect(alertsBody.delivery.inApp).toBeTrue();
 
   const acknowledgeRes = await app.request(
@@ -622,38 +660,47 @@ test("creates deduplicated Accuracy Guard alerts from profile facts", async () =
   expect((await acknowledgeRes.json()).status).toBe("acknowledged");
 });
 
-test("keeps fact sheets isolated between duplicate profile names", async () => {
-  const name = `Fact Duplicate ${crypto.randomUUID()}`;
+test("keeps citation-grounding alerts isolated between duplicate profile names", async () => {
+  const name = `Grounding Duplicate ${crypto.randomUUID()}`;
   const first = businessProfiles.create({
     name,
-    website: "https://fact-first.test",
-    description: "First fact profile.",
+    website: "https://grounding-first.test",
+    description: "First grounding profile.",
   });
   const second = businessProfiles.create({
     name,
-    website: "https://fact-second.test",
-    description: "Second fact profile.",
+    website: "https://grounding-second.test",
+    description: "Second grounding profile.",
   });
-  const createFactRes = await app.request(`/business-profiles/${first.id}/facts`, {
-    method: "POST",
-    body: JSON.stringify({ category: "pricing", label: "starting price", value: "$49" }),
-    headers: { "content-type": "application/json" },
+  const prompt = monitoringPrompts.add(first.id, "What does this company offer?");
+  const runId = monitoringRuns.start(first.id);
+  const attempt = monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: first.id,
+    monitoringPromptId: prompt.id,
+    provider: "gemini",
+    model: "mock",
+    status: "success",
+    rawResponse: "The company offers enterprise support.",
+    score: 0,
+    mentionSentiment: "neutral",
+    mentionPosition: 0,
+    recommended: false,
+    featureSentiment: {},
+    sources: [],
+    error: null,
   });
-  const fact = await createFactRes.json();
+  recordCitationGrounding(attempt);
+  expect(citationGrounding.alerts(first.id)).toHaveLength(1);
+  expect(citationGrounding.alerts(second.id)).toEqual([]);
+});
 
-  expect((await (await app.request(`/business-profiles/${first.id}/facts`)).json()).facts).toHaveLength(1);
-  expect((await (await app.request(`/business-profiles/${second.id}/facts`)).json()).facts).toEqual([]);
-
-  const updateRes = await app.request(`/business-profiles/${first.id}/facts/${fact.id}`, {
-    method: "PUT",
-    body: JSON.stringify({ category: "pricing", label: "starting price", value: "$59", active: false }),
-    headers: { "content-type": "application/json" },
-  });
-  expect((await updateRes.json()).active).toBeFalse();
-
-  const deleteRes = await app.request(`/business-profiles/${first.id}/facts/${fact.id}`, { method: "DELETE" });
-  expect(deleteRes.status).toBe(204);
-  expect((await (await app.request(`/business-profiles/${first.id}/facts`)).json()).facts).toEqual([]);
+test("does not count a detached source list as claim-level support", () => {
+  const result = analyzeCitationGrounding(
+    "The product costs $49. It includes priority support.\nSources: https://example.com/pricing",
+  );
+  expect(result.totalClaims).toBe(2);
+  expect(result.citedClaims).toBe(0);
 });
 
 test("keeps recommendation feedback isolated for duplicate profile names", async () => {

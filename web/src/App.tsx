@@ -16,17 +16,13 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
     website: "",
     description: "",
     competitors: "",
-    factLabel: "",
-    factValue: "",
   });
   const competitorNames = form.competitors.split("\n").map((value) => value.trim()).filter(Boolean);
-  const factComplete = Boolean(form.factLabel.trim()) === Boolean(form.factValue.trim());
   const canSubmit = Boolean(
     form.name.trim() &&
     form.website.trim() &&
     form.description.trim() &&
-    competitorNames.length === 5 &&
-    factComplete
+    competitorNames.length === 5
   );
 
   return (
@@ -40,9 +36,6 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
             website: form.website,
             description: form.description,
             competitorNames,
-            facts: form.factLabel.trim()
-              ? [{ category: "custom", label: form.factLabel.trim(), value: form.factValue.trim() }]
-              : [],
           });
         }
       }}
@@ -80,22 +73,6 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
           rows={5}
         />
       </label>
-      <label>
-        Initial fact label (optional)
-        <input
-          placeholder="Starting price"
-          value={form.factLabel}
-          onChange={(event) => setForm({ ...form, factLabel: event.target.value })}
-        />
-      </label>
-      <label>
-        Initial fact value
-        <input
-          placeholder="$49/month"
-          value={form.factValue}
-          onChange={(event) => setForm({ ...form, factValue: event.target.value })}
-        />
-      </label>
       <button type="submit" disabled={!canSubmit}>
         Create profile
       </button>
@@ -105,7 +82,7 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
 
 const navItems = [
   { key: "monitoring", label: "Monitoring", description: "AI mention frequency, sentiment, and trends." },
-  { key: "accuracy", label: "Accuracy Guard", description: "Ground truth and AI misinformation alerts." },
+  { key: "accuracy", label: "Citation Grounding", description: "Claim-level source coverage and unsupported-claim alerts." },
   { key: "benchmarking", label: "Benchmarking", description: "Compare your brand against competitors in AI answers." },
   { key: "recommendations", label: "Recommendations", description: "Prioritized fix-it ideas from detected gaps." },
   { key: "sources", label: "Sources", description: "Reddit, publications, reviews, and other sources AI cites." },

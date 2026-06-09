@@ -77,3 +77,34 @@ test("does not mix monitoring evidence between profiles", () => {
   expect(benchmark.overview.rows.every((row) => row.shareOfVoice === 0)).toBeTrue();
   expect(benchmark.gaps).toEqual([]);
 });
+
+test("excludes evidence captured before the current competitor set", async () => {
+  const profile = businessProfiles.create({
+    name: `Competitor Version ${crypto.randomUUID()}`,
+    website: "https://competitor-version.test",
+    description: "Competitor version test.",
+  });
+  businessProfiles.saveCompetitors(profile.id, ["Old One", "Old Two", "Old Three", "Old Four", "Old Five"]);
+  const prompt = monitoringPrompts.add(profile.id, "Which option is best?");
+  const runId = monitoringRuns.start(profile.id);
+  monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider: "openai",
+    model: "mock",
+    status: "success",
+    rawResponse: "Old One is the recommended option.",
+    score: 0.5,
+    mentionSentiment: "positive",
+    mentionPosition: null,
+    recommended: false,
+    featureSentiment: {},
+    sources: [],
+    error: null,
+  });
+  await Bun.sleep(2);
+  businessProfiles.saveCompetitors(profile.id, ["New One", "New Two", "New Three", "New Four", "New Five"]);
+
+  expect(buildMonitoringBenchmark(profile).hasData).toBeFalse();
+});

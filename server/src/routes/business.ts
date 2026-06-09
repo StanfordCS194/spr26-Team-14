@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { accuracyGuard } from "../db/accuracy-guard";
+import { citationGrounding } from "../db/citation-grounding";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
 import { profileRecommendations } from "../db/profile-recommendations";
@@ -17,18 +17,11 @@ import {
 import { generateMonitoringPrompts } from "../features/monitoring/prompt-generation";
 import { isLLMProviderConfigured } from "../lib/llm-providers";
 
-const factInputSchema = z.object({
-  category: z.enum(["pricing", "feature", "executive", "company", "custom"]),
-  label: z.string().trim().min(2),
-  value: z.string().trim().min(1),
-});
-
 const profileSchema = z.object({
   name: z.string().trim().min(1),
   website: z.string().trim().url(),
   description: z.string().trim().min(1),
   competitorNames: z.array(z.string().trim().min(1)).length(5).optional(),
-  facts: z.array(factInputSchema).max(20).optional(),
 });
 
 export const businessRoutes = new Hono();
@@ -55,9 +48,6 @@ businessRoutes.post("/business-profiles", async (c) => {
   const profile = businessProfiles.create(body);
   if (body.competitorNames) {
     businessProfiles.saveCompetitors(profile.id, body.competitorNames);
-  }
-  for (const fact of body.facts ?? []) {
-    accuracyGuard.createFact(profile.id, fact);
   }
   if (process.env.DISABLE_ONBOARDING_PROMPT_GENERATION !== "1") {
     void generateMonitoringPrompts(profile);
@@ -108,12 +98,6 @@ const recommendationFeedbackSchema = z.object({
 
 const recommendationStatusSchema = z.object({
   status: z.enum(["proposed", "planned", "in_progress", "completed", "dismissed"]),
-});
-
-const factSchema = factInputSchema;
-
-const factUpdateSchema = factSchema.extend({
-  active: z.boolean(),
 });
 
 businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
@@ -183,47 +167,14 @@ businessRoutes.put("/business-profiles/:id/monitoring-prompts/:promptId", async 
   return prompt ? c.json(prompt) : c.json({ error: "Monitoring prompt not found." }, 404);
 });
 
-businessRoutes.get("/business-profiles/:id/facts", (c) => {
-  const id = c.req.param("id");
-  if (!businessProfiles.get(id)) {
-    return c.json({ error: "Business profile not found." }, 404);
-  }
-  return c.json({ facts: accuracyGuard.facts(id) });
-});
-
-businessRoutes.post("/business-profiles/:id/facts", async (c) => {
-  const id = c.req.param("id");
-  if (!businessProfiles.get(id)) {
-    return c.json({ error: "Business profile not found." }, 404);
-  }
-  return c.json(accuracyGuard.createFact(id, factSchema.parse(await c.req.json())), 201);
-});
-
-businessRoutes.put("/business-profiles/:id/facts/:factId", async (c) => {
-  const id = c.req.param("id");
-  if (!businessProfiles.get(id)) {
-    return c.json({ error: "Business profile not found." }, 404);
-  }
-  const fact = accuracyGuard.updateFact(id, c.req.param("factId"), factUpdateSchema.parse(await c.req.json()));
-  return fact ? c.json(fact) : c.json({ error: "Fact not found." }, 404);
-});
-
-businessRoutes.delete("/business-profiles/:id/facts/:factId", (c) => {
-  const id = c.req.param("id");
-  if (!businessProfiles.get(id)) {
-    return c.json({ error: "Business profile not found." }, 404);
-  }
-  accuracyGuard.deleteFact(id, c.req.param("factId"));
-  return c.body(null, 204);
-});
-
 businessRoutes.get("/business-profiles/:id/accuracy-alerts", (c) => {
   const id = c.req.param("id");
   if (!businessProfiles.get(id)) {
     return c.json({ error: "Business profile not found." }, 404);
   }
   return c.json({
-    alerts: accuracyGuard.alerts(id),
+    alerts: citationGrounding.alerts(id),
+    summary: citationGrounding.summary(id),
     delivery: {
       inApp: true,
       emailConfigured: Boolean(process.env.ACCURACY_ALERT_EMAIL_WEBHOOK),
@@ -237,7 +188,7 @@ businessRoutes.put("/business-profiles/:id/accuracy-alerts/:alertId/acknowledge"
   if (!businessProfiles.get(id)) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const alert = accuracyGuard.acknowledge(id, c.req.param("alertId"));
+  const alert = citationGrounding.acknowledge(id, c.req.param("alertId"));
   return alert ? c.json(alert) : c.json({ error: "Open alert not found." }, 404);
 });
 
@@ -308,7 +259,7 @@ businessRoutes.get("/business-profiles/:id/admin/metrics", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const recommendationCount = profileRecommendations.list(profile.id).length;
+  const recommendationCount = syncProfileRecommendations(profile).length;
   return c.json({
     recommendationFeedback: recommendationFeedback.metrics(id, recommendationCount),
   });

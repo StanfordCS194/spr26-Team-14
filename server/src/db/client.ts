@@ -145,35 +145,35 @@ export function runMigrations() {
       FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS brand_facts (
+    CREATE TABLE IF NOT EXISTS citation_grounding_checks (
       id TEXT PRIMARY KEY,
       business_profile_id TEXT NOT NULL,
-      category TEXT NOT NULL,
-      label TEXT NOT NULL,
-      value TEXT NOT NULL,
-      active INTEGER NOT NULL DEFAULT 1,
+      monitoring_attempt_id TEXT NOT NULL UNIQUE,
+      provider TEXT NOT NULL,
+      claim_count INTEGER NOT NULL,
+      cited_claim_count INTEGER NOT NULL,
+      coverage REAL NOT NULL,
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS accuracy_alerts (
+    CREATE TABLE IF NOT EXISTS citation_grounding_alerts (
       id TEXT PRIMARY KEY,
       business_profile_id TEXT NOT NULL,
       monitoring_attempt_id TEXT NOT NULL,
-      brand_fact_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
       severity TEXT NOT NULL,
       status TEXT NOT NULL,
-      observed_claim TEXT NOT NULL,
-      expected_value TEXT NOT NULL,
+      claim_text TEXT NOT NULL,
       explanation TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      UNIQUE (monitoring_attempt_id, brand_fact_id),
+      UNIQUE (monitoring_attempt_id, claim_text),
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
-      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE,
-      FOREIGN KEY (brand_fact_id) REFERENCES brand_facts(id) ON DELETE CASCADE
+      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
     );
+
   `);
 
   const promptColumns = new Set(

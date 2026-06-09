@@ -1,5 +1,5 @@
 import { businessProfiles, type BusinessProfile } from "../../db/business-profiles";
-import { accuracyGuard } from "../../db/accuracy-guard";
+import { recordCitationGrounding } from "../accuracy/analyze-citations";
 import { monitoringPrompts } from "../../db/monitoring-prompts";
 import {
   monitoringRuns,
@@ -10,7 +10,6 @@ import {
 import { parseMonitoringResponse } from "./parse-response";
 import { callMonitoringProvider } from "./providers";
 import { recordAttemptSources } from "../sources/source-attribution";
-import { detectInaccuracies } from "../accuracy/detect-inaccuracies";
 
 export const defaultMonitoringProviders: MonitoringProvider[] = ["openai", "anthropic", "gemini"];
 
@@ -37,7 +36,6 @@ export async function runMonitoring(
   }
 
   const runId = monitoringRuns.start(profile.id);
-  const facts = accuracyGuard.facts(profile.id);
   monitoringPrompts.setStatus(profile.id, "generating");
 
   const attempts = await Promise.all(
@@ -76,7 +74,7 @@ export async function runMonitoring(
             sources: parsed.sources,
           });
           recordAttemptSources(profile, attempt);
-          detectInaccuracies(attempt, facts);
+          recordCitationGrounding(attempt);
           return attempt;
         } catch (error) {
           return monitoringRuns.addAttempt({

@@ -76,6 +76,13 @@ export function CompetitivePage({
 
   useEffect(() => {
     let cancelled = false;
+    setOverview(null);
+    setTrends(null);
+    setGaps([]);
+    setBrandLabels({});
+    setCompetitorBrandIds([]);
+    setLastWindow(null);
+    setError("");
     const snapshotUrl = businessProfileId
       ? `${API_BASE}/business-profiles/${businessProfileId}/competitive-monitoring?windowDays=7`
       : `${API_BASE}/competitive/snapshot?windowDays=7`;
@@ -92,7 +99,7 @@ export function CompetitivePage({
         setLastWindow({ windowStart: snap.timeframe.start, windowEnd: snap.timeframe.end });
       })
       .catch(() => {
-        /* leave dashboard empty if snapshot fetch fails */
+        if (!cancelled) setError("Could not load the saved benchmark for this profile.");
       });
 
     return () => {
@@ -233,6 +240,10 @@ export function CompetitivePage({
           const body = await runRes.json().catch(() => ({}));
           throw new Error(body.error ?? `Monitoring run failed: ${runRes.status}`);
         }
+        const run = await runRes.json() as { status: "completed" | "partial" | "failed" };
+        if (run.status === "failed") {
+          throw new Error("All monitoring providers failed.");
+        }
 
         const snapshotRes = await fetch(
           `${API_BASE}/business-profiles/${businessProfileId}/competitive-monitoring?windowDays=7`,
@@ -249,7 +260,11 @@ export function CompetitivePage({
         setAccountBrandName(snapshot.accountBrandName ?? input.accountBrandName);
         setCompetitorBrandIds(snapshot.competitorBrandIds ?? []);
         setLastWindow({ windowStart: snapshot.timeframe.start, windowEnd: snapshot.timeframe.end });
-        setProgressStatus("Benchmark completed from persisted monitoring evidence.");
+        setProgressStatus(
+          run.status === "partial"
+            ? "Benchmark completed with partial provider results."
+            : "Benchmark completed from persisted monitoring evidence.",
+        );
         return;
       }
 
