@@ -650,7 +650,13 @@ test("measures claim-level citation coverage and alerts on unsupported claims", 
     citedClaims: 1,
     citationCoverage: 0.5,
   });
-  expect(alertsBody.delivery.inApp).toBeTrue();
+  expect(alertsBody.providers.find((item: { provider: string }) => item.provider === "openai")).toEqual({
+    provider: "openai",
+    responsesChecked: 1,
+    totalClaims: 2,
+    citedClaims: 1,
+    citationCoverage: 0.5,
+  });
 
   const acknowledgeRes = await app.request(
     `/business-profiles/${profile.id}/accuracy-alerts/${alertsBody.alerts[0].id}/acknowledge`,
@@ -701,6 +707,38 @@ test("does not count a detached source list as claim-level support", () => {
   );
   expect(result.totalClaims).toBe(2);
   expect(result.citedClaims).toBe(0);
+});
+
+test("backfills citation checks for existing monitoring attempts", async () => {
+  const profile = businessProfiles.create({
+    name: `Backfill ${crypto.randomUUID()}`,
+    website: "https://backfill.test",
+    description: "Citation backfill profile.",
+  });
+  const prompt = monitoringPrompts.add(profile.id, "What does this company offer?");
+  const runId = monitoringRuns.start(profile.id);
+  monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider: "anthropic",
+    model: "mock",
+    status: "success",
+    rawResponse: "The company offers priority support [https://example.com/support].",
+    score: 0,
+    mentionSentiment: "neutral",
+    mentionPosition: 0,
+    recommended: false,
+    featureSentiment: {},
+    sources: ["https://example.com/support"],
+    error: null,
+  });
+
+  expect(citationGrounding.summary(profile.id).responsesChecked).toBe(0);
+  const response = await app.request(`/business-profiles/${profile.id}/accuracy-alerts`);
+  const body = await response.json();
+  expect(body.summary.responsesChecked).toBe(1);
+  expect(body.summary.citationCoverage).toBe(1);
 });
 
 test("keeps recommendation feedback isolated for duplicate profile names", async () => {

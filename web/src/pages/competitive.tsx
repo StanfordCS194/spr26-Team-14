@@ -229,45 +229,6 @@ export function CompetitivePage({
       const windowEndAfterRun = () => new Date().toISOString();
       await saveCompetitors(input.competitorNames);
 
-      if (businessProfileId) {
-        setProgressStatus("Running saved prompts across OpenAI, Claude, and Gemini...");
-        const runRes = await fetch(`${API_BASE}/business-profiles/${businessProfileId}/monitoring/runs`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ providers: ["openai", "anthropic", "gemini"] }),
-        });
-        if (!runRes.ok) {
-          const body = await runRes.json().catch(() => ({}));
-          throw new Error(body.error ?? `Monitoring run failed: ${runRes.status}`);
-        }
-        const run = await runRes.json() as { status: "completed" | "partial" | "failed" };
-        if (run.status === "failed") {
-          throw new Error("All monitoring providers failed.");
-        }
-
-        const snapshotRes = await fetch(
-          `${API_BASE}/business-profiles/${businessProfileId}/competitive-monitoring?windowDays=7`,
-        );
-        if (!snapshotRes.ok) {
-          throw new Error(`Persisted benchmark failed: ${snapshotRes.status}`);
-        }
-        const snapshot = await snapshotRes.json() as SnapshotResponse;
-        setOverview(snapshot.overview);
-        setTrends(snapshot.trends);
-        setGaps(snapshot.gaps);
-        setBrandLabels(snapshot.brandLabels);
-        setAccountBrandId(snapshot.accountBrandId ?? "");
-        setAccountBrandName(snapshot.accountBrandName ?? input.accountBrandName);
-        setCompetitorBrandIds(snapshot.competitorBrandIds ?? []);
-        setLastWindow({ windowStart: snapshot.timeframe.start, windowEnd: snapshot.timeframe.end });
-        setProgressStatus(
-          run.status === "partial"
-            ? "Benchmark completed with partial provider results."
-            : "Benchmark completed from persisted monitoring evidence.",
-        );
-        return;
-      }
-
       const setRes = await fetch(`${API_BASE}/competitive-sets`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -295,12 +256,22 @@ export function CompetitivePage({
       const stream = new EventSource(`${API_BASE}/competitive/stream/${sessionId}`);
       progressSourceRef.current = stream;
       setProgressStatus("Connecting progress stream...");
-      stream.onmessage = (message) => {
-        handleProgressEvent(JSON.parse(message.data) as CompetitiveProgressEvent);
-      };
-      stream.onerror = () => {
-        setProgressStatus("Progress stream disconnected.");
-      };
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error("Progress stream did not connect.")), 5000);
+        stream.onmessage = (message) => {
+          const event = JSON.parse(message.data) as CompetitiveProgressEvent;
+          handleProgressEvent(event);
+          if (event.type === "connected") {
+            window.clearTimeout(timeout);
+            resolve();
+          }
+        };
+        stream.onerror = () => {
+          window.clearTimeout(timeout);
+          setProgressStatus("Progress stream disconnected.");
+          reject(new Error("Progress stream disconnected before the run started."));
+        };
+      });
 
       const runRes = await fetch(`${API_BASE}/competitive/runs`, {
         method: "POST",

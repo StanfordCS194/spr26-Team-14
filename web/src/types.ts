@@ -92,6 +92,14 @@ export interface AccuracySummary {
   citationCoverage: number;
 }
 
+export interface CitationProviderSummary {
+  provider: MonitoringProvider;
+  responsesChecked: number;
+  totalClaims: number;
+  citedClaims: number;
+  citationCoverage: number | null;
+}
+
 export type RecommendationRating = "good" | "bad";
 
 export interface RecommendationFeedback {

@@ -37,6 +37,9 @@ const insertAlert = db.query<AlertRow, [
 const listChecks = db.query<CheckRow, [string]>(
   "SELECT * FROM citation_grounding_checks WHERE business_profile_id = ? ORDER BY created_at DESC",
 );
+const checkedAttemptIds = db.query<{ monitoring_attempt_id: string }, [string]>(
+  "SELECT monitoring_attempt_id FROM citation_grounding_checks WHERE business_profile_id = ?",
+);
 const listAlerts = db.query<AlertRow, [string]>(
   "SELECT * FROM citation_grounding_alerts WHERE business_profile_id = ? ORDER BY created_at DESC",
 );
@@ -54,6 +57,10 @@ function alertFromRow(row: AlertRow) {
 }
 
 export const citationGrounding = {
+  checkedAttemptIds(businessProfileId: string) {
+    return new Set(checkedAttemptIds.all(businessProfileId).map((row) => row.monitoring_attempt_id));
+  },
+
   record(
     attempt: MonitoringAttempt,
     result: {
@@ -84,6 +91,22 @@ export const citationGrounding = {
     const totalClaims = checks.reduce((sum, check) => sum + check.claim_count, 0);
     const citedClaims = checks.reduce((sum, check) => sum + check.cited_claim_count, 0);
     return { responsesChecked: checks.length, totalClaims, citedClaims, citationCoverage: totalClaims ? citedClaims / totalClaims : 1 };
+  },
+
+  providerSummary(businessProfileId: string) {
+    const checks = listChecks.all(businessProfileId);
+    return (["openai", "anthropic", "gemini"] as const).map((provider) => {
+      const providerChecks = checks.filter((check) => check.provider === provider);
+      const totalClaims = providerChecks.reduce((sum, check) => sum + check.claim_count, 0);
+      const citedClaims = providerChecks.reduce((sum, check) => sum + check.cited_claim_count, 0);
+      return {
+        provider,
+        responsesChecked: providerChecks.length,
+        totalClaims,
+        citedClaims,
+        citationCoverage: totalClaims ? citedClaims / totalClaims : null,
+      };
+    });
   },
 
   acknowledge(businessProfileId: string, id: string) {

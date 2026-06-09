@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { resetStore, seedPromptSetId, store } from "../../../db/store";
 import { runCompetitivePipeline } from "../pipeline";
+import type { CompetitiveProgressPayload } from "../progress";
 
 describe("runCompetitivePipeline", () => {
   beforeEach(() => {
@@ -18,6 +19,7 @@ describe("runCompetitivePipeline", () => {
       store.brands.set(competitor.id, competitor);
     }
 
+    const events: CompetitiveProgressPayload[] = [];
     const result = await runCompetitivePipeline({
       accountBrandId: accountBrand.id,
       competitorBrandIds: [
@@ -31,12 +33,14 @@ describe("runCompetitivePipeline", () => {
       models: ["gpt-4.1-mini"],
       windowStart: new Date(Date.now() - 1000).toISOString(),
       windowEnd: new Date().toISOString(),
-    });
+    }, { reportProgress: (event) => events.push(event) });
 
     expect(result.promptRuns.length).toBe(20);
     expect(result.answers.length).toBe(20 * 6);
     expect(result.comparisons.length).toBe(20);
     const brandIds = new Set(result.answers.map((answer) => answer.brandId));
     expect(brandIds.size).toBe(6);
+    expect(events.filter((event) => event.type === "answer_completed")).toHaveLength(20 * 6);
+    expect(events.filter((event) => event.type === "judge_completed")).toHaveLength(20);
   }, 180_000);
 });
