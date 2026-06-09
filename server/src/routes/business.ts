@@ -2,11 +2,12 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
+import { profileRecommendations } from "../db/profile-recommendations";
 import { recommendationFeedback } from "../db/recommendation-feedback";
 import { store } from "../db/store";
 import { sourcesForBrand } from "../features/competitive/sources.service";
 import { buildMonitoringBenchmark } from "../features/competitive/monitoring-benchmark";
-import { recommendationsForBrand } from "../features/fixit/recommendations";
+import { syncProfileRecommendations } from "../features/fixit/profile-recommendations";
 import {
   defaultMonitoringProviders,
   monitoringHistory,
@@ -85,6 +86,10 @@ const recommendationFeedbackSchema = z.object({
   rating: z.enum(["good", "bad"]),
 });
 
+const recommendationStatusSchema = z.object({
+  status: z.enum(["proposed", "planned", "in_progress", "completed", "dismissed"]),
+});
+
 businessRoutes.get("/business-profiles/:id/monitoring", (c) => {
   const id = c.req.param("id");
   if (!businessProfiles.get(id)) {
@@ -144,12 +149,25 @@ businessRoutes.get("/business-profiles/:id/recommendations", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const brandId = brandIdForProfile(profile.id);
-  const recommendations = brandId ? recommendationsForBrand(brandId) : [];
+  const recommendations = syncProfileRecommendations(profile);
   return c.json({
     recommendations,
     llmConfigured: isLLMProviderConfigured("openai"),
   });
+});
+
+businessRoutes.put("/business-profiles/:id/recommendations/:recommendationId/status", async (c) => {
+  const profile = businessProfiles.get(c.req.param("id"));
+  if (!profile) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const { status } = recommendationStatusSchema.parse(await c.req.json());
+  const recommendation = profileRecommendations.updateStatus(
+    profile.id,
+    c.req.param("recommendationId"),
+    status,
+  );
+  return recommendation ? c.json(recommendation) : c.json({ error: "Recommendation not found." }, 404);
 });
 
 businessRoutes.get("/business-profiles/:id/sources", (c) => {
@@ -180,8 +198,7 @@ businessRoutes.get("/business-profiles/:id/admin/metrics", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
-  const brandId = brandIdForProfile(profile.id);
-  const recommendationCount = brandId ? recommendationsForBrand(brandId).length : 0;
+  const recommendationCount = profileRecommendations.list(profile.id).length;
   return c.json({
     recommendationFeedback: recommendationFeedback.metrics(id, recommendationCount),
   });

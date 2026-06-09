@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { expect, test } from "bun:test";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringRuns } from "../db/monitoring-runs";
+import { profileRecommendations } from "../db/profile-recommendations";
 import { store } from "../db/store";
 import { businessRoutes } from "./business";
 
@@ -89,6 +90,18 @@ test("saves recommendation feedback and reports admin metrics", async () => {
     action: "Publish the proof point.",
     createdAt: new Date().toISOString(),
   });
+  profileRecommendations.upsert({
+    businessProfileId: profile.id,
+    sourceGapEventId: "gap-feedback",
+    sourceAttemptId: crypto.randomUUID(),
+    title: "Improve live proof points",
+    category: "content",
+    impact: "high",
+    effort: "medium",
+    evidence: "A gap was detected.",
+    action: "Publish the proof point.",
+    targetProvider: "openai",
+  });
 
   const saveRes = await app.request(`/business-profiles/${profile.id}/recommendation-feedback`, {
     method: "PUT",
@@ -140,6 +153,18 @@ test("returns live recommendations and source attributions for matching brand", 
     evidence: "A competitor owns value perception.",
     action: "Publish a comparison page.",
     createdAt: new Date().toISOString(),
+  });
+  profileRecommendations.upsert({
+    businessProfileId: profile.id,
+    sourceGapEventId: "gap-live",
+    sourceAttemptId: crypto.randomUUID(),
+    title: "Close the value gap",
+    category: "content",
+    impact: "high",
+    effort: "low",
+    evidence: "A competitor owns value perception.",
+    action: "Publish a comparison page.",
+    targetProvider: "openai",
   });
   store.citedSources.push({
     id: "src-live",
@@ -206,6 +231,30 @@ test("keeps recommendations and sources isolated for duplicate profile names", a
       createdAt: new Date().toISOString(),
     },
   );
+  profileRecommendations.upsert({
+    businessProfileId: firstProfile.id,
+    sourceGapEventId: "gap-first-duplicate",
+    sourceAttemptId: crypto.randomUUID(),
+    title: "First profile recommendation",
+    category: "content",
+    impact: "high",
+    effort: "low",
+    evidence: "First profile evidence.",
+    action: "Act on first profile.",
+    targetProvider: "openai",
+  });
+  profileRecommendations.upsert({
+    businessProfileId: secondProfile.id,
+    sourceGapEventId: "gap-second-duplicate",
+    sourceAttemptId: crypto.randomUUID(),
+    title: "Second profile recommendation",
+    category: "content",
+    impact: "high",
+    effort: "low",
+    evidence: "Second profile evidence.",
+    action: "Act on second profile.",
+    targetProvider: "openai",
+  });
   store.citedSources.push(
     {
       id: "src-first-duplicate",
@@ -233,11 +282,11 @@ test("keeps recommendations and sources isolated for duplicate profile names", a
 
   const firstRecommendationsRes = await app.request(`/business-profiles/${firstProfile.id}/recommendations`);
   const secondRecommendationsRes = await app.request(`/business-profiles/${secondProfile.id}/recommendations`);
-  expect((await firstRecommendationsRes.json()).recommendations.map((rec: { id: string }) => rec.id)).toContain(
-    "rec-first-duplicate",
+  expect((await firstRecommendationsRes.json()).recommendations.map((rec: { title: string }) => rec.title)).toContain(
+    "First profile recommendation",
   );
-  expect((await secondRecommendationsRes.json()).recommendations.map((rec: { id: string }) => rec.id)).toContain(
-    "rec-second-duplicate",
+  expect((await secondRecommendationsRes.json()).recommendations.map((rec: { title: string }) => rec.title)).toContain(
+    "Second profile recommendation",
   );
 
   const firstSourcesRes = await app.request(`/business-profiles/${firstProfile.id}/sources`);
@@ -319,6 +368,83 @@ test("keeps successful monitoring responses when one provider fails", async () =
   }
 });
 
+test("tracks recommendation lifecycle and before-after monitoring lift", async () => {
+  const profile = businessProfiles.create({
+    name: `Recommendation Lift ${crypto.randomUUID()}`,
+    website: "https://recommendation-lift.test",
+    description: "Recommendation lifecycle profile.",
+  });
+  businessProfiles.saveCompetitors(profile.id, ["Lift Competitor", "Two", "Three", "Four", "Five"]);
+  const promptRes = await app.request(`/business-profiles/${profile.id}/monitoring-prompts`, {
+    method: "POST",
+    body: JSON.stringify({ prompt: "Which platform has the most reliable support?" }),
+    headers: { "content-type": "application/json" },
+  });
+  const prompt = await promptRes.json();
+  const runId = monitoringRuns.start(profile.id);
+  monitoringRuns.addAttempt({
+    runId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider: "anthropic",
+    model: "mock",
+    status: "success",
+    rawResponse: "Lift Competitor is the recommended option for reliable support.",
+    score: -0.4,
+    mentionSentiment: "negative",
+    mentionPosition: null,
+    recommended: false,
+    featureSentiment: {},
+    sources: [],
+    error: null,
+  });
+  monitoringRuns.finish(runId, "completed");
+
+  const recommendationsBody = await (
+    await app.request(`/business-profiles/${profile.id}/recommendations`)
+  ).json();
+  expect(recommendationsBody.recommendations.length).toBeGreaterThan(0);
+  const recommendation = recommendationsBody.recommendations[0];
+
+  const statusRes = await app.request(
+    `/business-profiles/${profile.id}/recommendations/${recommendation.id}/status`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ status: "completed" }),
+      headers: { "content-type": "application/json" },
+    },
+  );
+  expect((await statusRes.json()).status).toBe("completed");
+
+  await Bun.sleep(2);
+  const followupRunId = monitoringRuns.start(profile.id);
+  monitoringRuns.addAttempt({
+    runId: followupRunId,
+    businessProfileId: profile.id,
+    monitoringPromptId: prompt.id,
+    provider: "anthropic",
+    model: "mock",
+    status: "success",
+    rawResponse: `${profile.name} is a recommended option with reliable support.`,
+    score: 0.8,
+    mentionSentiment: "positive",
+    mentionPosition: 0,
+    recommended: true,
+    featureSentiment: { support: "positive" },
+    sources: [],
+    error: null,
+  });
+  monitoringRuns.finish(followupRunId, "completed");
+
+  const updatedBody = await (
+    await app.request(`/business-profiles/${profile.id}/recommendations`)
+  ).json();
+  const updated = updatedBody.recommendations.find((item: { id: string }) => item.id === recommendation.id);
+  expect(updated.lift.beforeScore).toBe(-0.4);
+  expect(updated.lift.afterScore).toBe(0.8);
+  expect(updated.lift.delta).toBeCloseTo(1.2);
+});
+
 test("keeps recommendation feedback isolated for duplicate profile names", async () => {
   const name = `Duplicate ${crypto.randomUUID()}`;
   const firstProfile = businessProfiles.create({
@@ -348,6 +474,18 @@ test("keeps recommendation feedback isolated for duplicate profile names", async
     evidence: "Second profile evidence.",
     action: "Act on the second profile.",
     createdAt: new Date().toISOString(),
+  });
+  profileRecommendations.upsert({
+    businessProfileId: secondProfile.id,
+    sourceGapEventId: "gap-second-feedback",
+    sourceAttemptId: crypto.randomUUID(),
+    title: "Second profile recommendation",
+    category: "content",
+    impact: "medium",
+    effort: "low",
+    evidence: "Second profile evidence.",
+    action: "Act on the second profile.",
+    targetProvider: "openai",
   });
 
   const saveRes = await app.request(`/business-profiles/${firstProfile.id}/recommendation-feedback`, {

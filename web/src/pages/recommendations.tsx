@@ -5,6 +5,7 @@ import type {
   Recommendation,
   RecommendationFeedback,
   RecommendationRating,
+  RecommendationStatus,
   RecommendationsResponse,
 } from "../types"
 
@@ -49,9 +50,10 @@ type RecommendationItemProps = {
   rank: number
   rating?: RecommendationRating
   onRate: (recommendationId: string, rating: RecommendationRating) => void
+  onStatus: (recommendationId: string, status: RecommendationStatus) => void
 }
 
-const RecommendationItem = ({ rec, rank, rating, onRate }: RecommendationItemProps) => {
+const RecommendationItem = ({ rec, rank, rating, onRate, onStatus }: RecommendationItemProps) => {
   const titleId = `rec-title-${rec.id}`
   return (
     <article className="card" aria-labelledby={titleId}>
@@ -68,6 +70,27 @@ const RecommendationItem = ({ rec, rank, rating, onRate }: RecommendationItemPro
       <p className="rec-item__body">{normalizeEvidence(rec.evidence)}</p>
       <p className="subhead">Suggested action</p>
       <p className="rec-item__body">{rec.action}</p>
+      <div className="inline-form">
+        <label>
+          Status
+          <select
+            value={rec.status}
+            onChange={(event) => onStatus(rec.id, event.target.value as RecommendationStatus)}
+          >
+            <option value="proposed">Proposed</option>
+            <option value="planned">Planned</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </label>
+        {rec.targetProvider && <span className="chip">Target: {rec.targetProvider}</span>}
+        {rec.lift.delta !== null && (
+          <span className="chip">
+            Measured lift: {rec.lift.delta >= 0 ? "+" : ""}{rec.lift.delta.toFixed(2)}
+          </span>
+        )}
+      </div>
       <div className="rec-feedback" aria-label={`Feedback for ${rec.title}`}>
         <span className="rec-feedback__label">Was this recommendation useful?</span>
         <div className="rec-feedback__actions">
@@ -146,6 +169,26 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
     }
   }
 
+  async function updateStatus(recommendationId: string, status: RecommendationStatus) {
+    const previous = recommendations
+    setRecommendations((current) => current.map((rec) => rec.id === recommendationId ? { ...rec, status } : rec))
+    const res = await fetch(
+      `${API_BASE}/business-profiles/${profile.id}/recommendations/${recommendationId}/status`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status }),
+      },
+    )
+    if (!res.ok) {
+      setRecommendations(previous)
+      setFeedbackError("Could not update recommendation status.")
+      return
+    }
+    const updated = await res.json() as Recommendation
+    setRecommendations((current) => current.map((rec) => rec.id === recommendationId ? updated : rec))
+  }
+
   if (loading) {
     return (
       <article className="panel wide-panel">
@@ -198,6 +241,7 @@ export const RecommendationsPage = ({ profile }: { profile: BusinessProfile }) =
               rank={i + 1}
               rating={ratings[rec.id]}
               onRate={rateRecommendation}
+              onStatus={updateStatus}
             />
           ))}
         </div>

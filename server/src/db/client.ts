@@ -100,6 +100,27 @@ export function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS monitoring_attempts_profile_created_idx
       ON monitoring_attempts (business_profile_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS profile_recommendations (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      source_gap_event_id TEXT NOT NULL,
+      source_attempt_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL,
+      impact TEXT NOT NULL,
+      effort TEXT NOT NULL,
+      evidence TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target_provider TEXT,
+      status TEXT NOT NULL,
+      started_at TEXT,
+      completed_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (business_profile_id, source_gap_event_id),
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
   `);
 }
 

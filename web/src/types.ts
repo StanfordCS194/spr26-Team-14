@@ -85,6 +85,7 @@ export interface AdminMetricsResponse {
 export type RecommendationCategory = "content" | "earned_media" | "technical";
 export type ImpactLevel = "high" | "medium" | "low";
 export type EffortLevel = "low" | "medium" | "high";
+export type RecommendationStatus = "proposed" | "planned" | "in_progress" | "completed" | "dismissed";
 
 export interface Recommendation {
   id: string;
@@ -96,6 +97,15 @@ export interface Recommendation {
   effort: EffortLevel;
   evidence: string;
   action: string;
+  targetProvider: string | null;
+  status: RecommendationStatus;
+  startedAt: string | null;
+  completedAt: string | null;
+  lift: {
+    beforeScore: number | null;
+    afterScore: number | null;
+    delta: number | null;
+  };
   createdAt: string;
 }
 
