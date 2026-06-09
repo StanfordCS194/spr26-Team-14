@@ -1,8 +1,13 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-const dbPath = process.env.PERCEPTION_DB_PATH ?? join(import.meta.dir, "../../.data/perception.sqlite");
+const isTest = process.env.NODE_ENV === "test" || process.env.BUN_ENV === "test";
+const defaultDbPath = isTest
+  ? join(tmpdir(), `perception-test-${process.pid}.sqlite`)
+  : join(import.meta.dir, "../../.data/perception.sqlite");
+const dbPath = process.env.PERCEPTION_DB_PATH ?? defaultDbPath;
 
 mkdirSync(dirname(dbPath), { recursive: true });
 
@@ -139,7 +144,50 @@ export function runMigrations() {
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
       FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS citation_grounding_checks (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      monitoring_attempt_id TEXT NOT NULL UNIQUE,
+      provider TEXT NOT NULL,
+      claim_count INTEGER NOT NULL,
+      cited_claim_count INTEGER NOT NULL,
+      coverage REAL NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS citation_grounding_alerts (
+      id TEXT PRIMARY KEY,
+      business_profile_id TEXT NOT NULL,
+      monitoring_attempt_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      status TEXT NOT NULL,
+      claim_text TEXT NOT NULL,
+      explanation TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (monitoring_attempt_id, claim_text),
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (monitoring_attempt_id) REFERENCES monitoring_attempts(id) ON DELETE CASCADE
+    );
+
   `);
+
+  const promptColumns = new Set(
+    db.query<{ name: string }, []>("PRAGMA table_info(monitoring_prompts)").all().map((column) => column.name),
+  );
+  if (!promptColumns.has("category")) {
+    db.exec("ALTER TABLE monitoring_prompts ADD COLUMN category TEXT NOT NULL DEFAULT 'custom'");
+  }
+  if (!promptColumns.has("cadence")) {
+    db.exec("ALTER TABLE monitoring_prompts ADD COLUMN cadence TEXT NOT NULL DEFAULT 'daily'");
+  }
+  if (!promptColumns.has("active")) {
+    db.exec("ALTER TABLE monitoring_prompts ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+  }
 }
 
 runMigrations();
