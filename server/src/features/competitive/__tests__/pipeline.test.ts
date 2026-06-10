@@ -30,6 +30,7 @@ describe("runCompetitivePipeline", () => {
         competitors[4]!.id,
       ],
       promptSetId: seedPromptSetId,
+      provider: "openai",
       models: ["gpt-4.1-mini"],
       windowStart: new Date(Date.now() - 1000).toISOString(),
       windowEnd: new Date().toISOString(),

@@ -13,6 +13,7 @@ export interface CompetitorSet {
 }
 
 export type PromptKind = "brand_specific" | "domain_general";
+export type BenchmarkProvider = "openai" | "anthropic" | "gemini";
 
 export interface PromptSet {
   id: UUID;
@@ -28,6 +29,7 @@ export interface CohortRun {
   accountBrandId: UUID;
   competitorBrandIds: [UUID, UUID, UUID, UUID, UUID];
   promptSetId: UUID;
+  provider: BenchmarkProvider;
   models: string[];
   windowStart: string;
   windowEnd: string;
@@ -38,6 +40,7 @@ export interface PromptRun {
   promptSetId: UUID;
   prompt: string;
   promptKind: PromptKind;
+  provider?: BenchmarkProvider;
   model: string;
   createdAt: string;
 }

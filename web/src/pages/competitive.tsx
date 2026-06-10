@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CompetitiveSetPicker } from "../components/competitive/CompetitiveSetPicker";
+import { CompetitiveSetPicker, type CompetitiveSetInput } from "../components/competitive/CompetitiveSetPicker";
 import { FeatureGapTable } from "../components/competitive/FeatureGapTable";
 import { LiveRunTheater } from "../components/competitive/LiveRunTheater";
 import { SentimentComparison } from "../components/competitive/SentimentComparison";
@@ -75,6 +75,10 @@ export function CompetitivePage({
   const [progressByBrand, setProgressByBrand] = useState<Record<string, BrandProgressBox>>({});
 
   const [lastWindow, setLastWindow] = useState<{ windowStart: string; windowEnd: string } | null>(null);
+  const [lastRunConfig, setLastRunConfig] = useState<{ provider: string; model: string }>({
+    provider: "openai",
+    model: "gpt-4.1-mini",
+  });
   const progressSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -224,7 +228,7 @@ export function CompetitivePage({
     }
   }
 
-  async function createSet(input: { accountBrandName: string; competitorNames: string[] }) {
+  async function createSet(input: CompetitiveSetInput) {
     setBusy(true);
     setError("");
     try {
@@ -244,6 +248,7 @@ export function CompetitivePage({
       setAccountBrandId(setBody.accountBrandId);
       setAccountBrandName(input.accountBrandName);
       setCompetitorBrandIds(setBody.competitorBrandIds);
+      setLastRunConfig({ provider: input.provider, model: input.model });
       const labels: Record<string, string> = {
         [setBody.accountBrandId]: input.accountBrandName,
       };
@@ -283,7 +288,8 @@ export function CompetitivePage({
           sessionId,
           accountBrandId: setBody.accountBrandId,
           competitorBrandIds: setBody.competitorBrandIds,
-          models: ["gpt-4.1-mini"],
+          provider: input.provider,
+          models: [input.model],
           windowStart,
           windowEnd: windowEndAfterRun(),
         }),
@@ -446,6 +452,14 @@ export function CompetitivePage({
           <div>
             <dt>Window</dt>
             <dd>{lastWindow ? `${lastWindow.windowStart.slice(0, 10)} → ${lastWindow.windowEnd.slice(0, 10)}` : "—"}</dd>
+          </div>
+          <div>
+            <dt>Provider</dt>
+            <dd>{lastRunConfig.provider}</dd>
+          </div>
+          <div>
+            <dt>Model</dt>
+            <dd>{lastRunConfig.model}</dd>
           </div>
         </dl>
       </Section>
