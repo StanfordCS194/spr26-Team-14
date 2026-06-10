@@ -2,7 +2,7 @@ import { z } from "zod";
 import { store, getNowIso } from "../../db/store";
 import type { ProgressReporter } from "./progress";
 import { generateBrandAnswer, judgeComparativeOutputs } from "../../lib/llm";
-import type { AIAnswer, CohortRun, CompetitiveDelta, PromptKind, PromptRun } from "./types";
+import type { AIAnswer, BenchmarkProvider, CohortRun, CompetitiveDelta, PromptKind, PromptRun } from "./types";
 
 const PROMPT_RUN_CONCURRENCY = 4;
 
@@ -10,6 +10,7 @@ const cohortRunSchema = z.object({
   accountBrandId: z.string().min(1),
   competitorBrandIds: z.array(z.string().min(1)).length(5),
   promptSetId: z.string().min(1),
+  provider: z.enum(["openai", "anthropic", "gemini"]).default("openai"),
   models: z.array(z.string().min(1)).min(1),
   windowStart: z.string().datetime(),
   windowEnd: z.string().datetime(),
@@ -34,6 +35,7 @@ function createPromptRuns(
   promptSetId: string,
   brandSpecific: string[],
   domain: string[],
+  provider: BenchmarkProvider,
   models: string[],
 ): PromptRun[] {
   const now = getNowIso();
@@ -47,6 +49,7 @@ function createPromptRuns(
           promptSetId,
           prompt,
           promptKind,
+          provider,
           model,
           createdAt: now,
         };
@@ -128,7 +131,13 @@ export async function runCompetitivePipeline(
   }
 
   const brandIds = [input.accountBrandId, ...input.competitorBrandIds];
-  const promptRuns = createPromptRuns(promptSet.id, promptSet.brandSpecificPrompts, promptSet.domainPrompts, input.models);
+  const promptRuns = createPromptRuns(
+    promptSet.id,
+    promptSet.brandSpecificPrompts,
+    promptSet.domainPrompts,
+    input.provider,
+    input.models,
+  );
 
   const allAnswers: AIAnswer[] = [];
   const comparisons = await mapWithConcurrency(promptRuns, PROMPT_RUN_CONCURRENCY, async (promptRun) => {

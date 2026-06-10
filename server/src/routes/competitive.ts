@@ -10,7 +10,6 @@ import {
 import { runGapAnalysis } from "../features/competitive/gap-analysis.service";
 import { refreshSourcesForBrand } from "../features/competitive/sources.service";
 import { publishGapEventsToRecommendationInputs } from "../features/fixit/signal-bridge";
-import { isLLMProviderConfigured } from "../lib/llm-providers";
 
 const competitorSetSchema = z.object({
   accountBrandName: z.string().min(1),
@@ -23,10 +22,24 @@ const competitiveRunSchema = z.object({
   competitorBrandIds: z.array(z.string().min(1)).length(5),
   promptSetId: z.string().optional(),
   sessionId: z.string().min(1).optional(),
+  provider: z.enum(["openai", "anthropic", "gemini"]).default("openai"),
   models: z.array(z.string().min(1)).min(1).default(["gpt-4.1-mini"]),
   windowStart: z.string().datetime(),
   windowEnd: z.string().datetime(),
 });
+
+function benchmarkProviderConfigured(provider: "openai" | "anthropic" | "gemini") {
+  if (
+    process.env.PERCEPTION_FORCE_MOCK_LLM === "1" ||
+    process.env.NODE_ENV === "test" ||
+    process.env.BUN_ENV === "test"
+  ) {
+    return true;
+  }
+  if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
+  if (provider === "anthropic") return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(process.env.GEMINI_API_KEY);
+}
 
 function ensureBrand(name: string) {
   const existing = Array.from(store.brands.values()).find((brand) => brand.name === name);
@@ -118,12 +131,11 @@ competitiveRoutes.post("/competitive-sets", async (c) => {
 competitiveRoutes.post("/competitive/runs", async (c) => {
   const body = competitiveRunSchema.parse(await c.req.json());
   if (
-    process.env.PERCEPTION_FORCE_MOCK_LLM !== "1" &&
-    process.env.NODE_ENV !== "test" &&
-    process.env.BUN_ENV !== "test" &&
-    !isLLMProviderConfigured("openai")
+    !benchmarkProviderConfigured(body.provider)
   ) {
-    return c.json({ error: "OpenAI is not configured. Set OPENAI_API_KEY to run a live benchmark." }, 503);
+    return c.json({
+      error: `${body.provider} is not configured. Set the provider API key to run a live benchmark.`,
+    }, 503);
   }
   const reportProgress = body.sessionId
     ? (event: Parameters<typeof publishCompetitiveProgress>[1]) => publishCompetitiveProgress(body.sessionId!, event)

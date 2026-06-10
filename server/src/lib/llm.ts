@@ -2,14 +2,13 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { store } from "../db/store";
 import type { ProgressReporter } from "../features/competitive/progress";
-import type { AIAnswer, Brand, ComparativeDelta, PromptRun } from "../features/competitive/types";
+import type { AIAnswer, BenchmarkProvider, Brand, ComparativeDelta, PromptRun } from "../features/competitive/types";
 
-type SupportedLLMProvider = "openai";
+type SupportedLLMProvider = BenchmarkProvider;
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
-const configuredProvider = (env.LLM_PROVIDER ?? "openai") as SupportedLLMProvider;
 const openAIApiKey = env.OPENAI_API_KEY;
-const openAIClient = configuredProvider === "openai" && openAIApiKey ? new OpenAI({ apiKey: openAIApiKey }) : null;
+const openAIClient = openAIApiKey ? new OpenAI({ apiKey: openAIApiKey }) : null;
 
 const mentionSchema = z.object({
   brandId: z.string(),
@@ -32,16 +31,45 @@ const BRAND_ANSWER_MAX_OUTPUT_TOKENS = 220;
 const JUDGE_MAX_OUTPUT_TOKENS = 900;
 const STREAM_FLUSH_CHARS = 140;
 
-function getProviderLabel() {
-  return `llm:${configuredProvider}`;
+function runtimeEnv() {
+  return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? env;
 }
 
-function getStreamingClient() {
-  if (configuredProvider !== "openai") {
-    throw new Error(`Unsupported LLM provider: ${configuredProvider}`);
+function normalizeProvider(provider: string | undefined): SupportedLLMProvider {
+  if (provider === "anthropic" || provider === "gemini" || provider === "openai") {
+    return provider;
   }
-  const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? env;
-  if (runtimeEnv.PERCEPTION_FORCE_MOCK_LLM === "1") {
+  return "openai";
+}
+
+function providerForPromptRun(promptRun: PromptRun): SupportedLLMProvider {
+  return promptRun.provider ?? normalizeProvider(runtimeEnv().LLM_PROVIDER);
+}
+
+function forceMockLLM() {
+  const currentEnv = runtimeEnv();
+  return currentEnv.PERCEPTION_FORCE_MOCK_LLM === "1" ||
+    currentEnv.NODE_ENV === "test" ||
+    currentEnv.BUN_ENV === "test";
+}
+
+function providerConfigured(provider: SupportedLLMProvider) {
+  const currentEnv = runtimeEnv();
+  if (provider === "openai") return Boolean(currentEnv.OPENAI_API_KEY);
+  if (provider === "anthropic") return Boolean(currentEnv.ANTHROPIC_API_KEY);
+  return Boolean(currentEnv.GEMINI_API_KEY);
+}
+
+function shouldUseMock(provider: SupportedLLMProvider) {
+  return forceMockLLM() || !providerConfigured(provider);
+}
+
+function getProviderLabel(provider: SupportedLLMProvider) {
+  return `llm:${provider}`;
+}
+
+function getStreamingClient(provider: SupportedLLMProvider) {
+  if (provider !== "openai" || shouldUseMock(provider)) {
     return null;
   }
   if (!openAIClient) {
@@ -58,30 +86,45 @@ function compactLabel(value: string) {
   return value.replaceAll(/\s+/g, " ").trim().slice(0, 80);
 }
 
-function flushStreamBuffer(label: string, buffer: string, onDelta?: (text: string) => void) {
+function flushStreamBuffer(
+  provider: SupportedLLMProvider,
+  label: string,
+  buffer: string,
+  onDelta?: (text: string) => void,
+) {
   const text = buffer.trim();
   if (!text) {
     return;
   }
-  console.log(`[${getProviderLabel()}] ${label}: ${text}`);
+  console.log(`[${getProviderLabel(provider)}] ${label}: ${text}`);
   onDelta?.(text);
 }
 
-async function createStreamedResponse(input: {
+type CompetitiveLLMResponseInput = {
   label: string;
+  provider: SupportedLLMProvider;
   model: string;
   maxOutputTokens: number;
   messages: Array<{ role: "system" | "user"; content: string }>;
   onStarted?: () => void;
   onDelta?: (text: string) => void;
   onCompleted?: () => void;
-}) {
-  const client = getStreamingClient();
-  if (!client) {
-    throw new Error(`${configuredProvider} client not configured.`);
+};
+
+async function createStreamedResponse(input: CompetitiveLLMResponseInput) {
+  if (input.provider === "anthropic") {
+    return createAnthropicResponse(input);
+  }
+  if (input.provider === "gemini") {
+    return createGeminiResponse(input);
   }
 
-  console.log(`[${getProviderLabel()}] ${input.label}: started`);
+  const client = getStreamingClient(input.provider);
+  if (!client) {
+    throw new Error(`${input.provider} client not configured.`);
+  }
+
+  console.log(`[${getProviderLabel(input.provider)}] ${input.label}: started`);
   input.onStarted?.();
 
   const runner = client.responses.stream({
@@ -99,24 +142,106 @@ async function createStreamedResponse(input: {
 
     let newlineIndex = buffer.indexOf("\n");
     while (newlineIndex !== -1) {
-      flushStreamBuffer(input.label, buffer.slice(0, newlineIndex), input.onDelta);
+      flushStreamBuffer(input.provider, input.label, buffer.slice(0, newlineIndex), input.onDelta);
       buffer = buffer.slice(newlineIndex + 1);
       newlineIndex = buffer.indexOf("\n");
     }
 
     if (buffer.length >= STREAM_FLUSH_CHARS) {
-      flushStreamBuffer(input.label, buffer, input.onDelta);
+      flushStreamBuffer(input.provider, input.label, buffer, input.onDelta);
       buffer = "";
     }
   });
 
   const response = await runner.finalResponse();
-  flushStreamBuffer(input.label, buffer, input.onDelta);
-  console.log(`[${getProviderLabel()}] ${input.label}: completed`);
+  flushStreamBuffer(input.provider, input.label, buffer, input.onDelta);
+  console.log(`[${getProviderLabel(input.provider)}] ${input.label}: completed`);
   input.onCompleted?.();
   return typeof response.output_text === "string" && response.output_text.trim().length > 0
     ? response.output_text
     : fullText;
+}
+
+async function createAnthropicResponse(input: CompetitiveLLMResponseInput) {
+  const apiKey = runtimeEnv().ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("anthropic client not configured.");
+  }
+
+  console.log(`[${getProviderLabel(input.provider)}] ${input.label}: started`);
+  input.onStarted?.();
+
+  const system = input.messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
+  const messages = input.messages
+    .filter((message) => message.role === "user")
+    .map((message) => ({ role: "user" as const, content: message.content }));
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: input.model,
+      max_tokens: input.maxOutputTokens,
+      system: system || undefined,
+      messages,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Anthropic request failed (${response.status}).`);
+  }
+
+  const body = await response.json() as { content?: Array<{ type: string; text?: string }> };
+  const text = body.content?.map((item) => item.text ?? "").join("\n").trim() ?? "";
+  flushStreamBuffer(input.provider, input.label, text, input.onDelta);
+  console.log(`[${getProviderLabel(input.provider)}] ${input.label}: completed`);
+  input.onCompleted?.();
+  return text;
+}
+
+async function createGeminiResponse(input: CompetitiveLLMResponseInput) {
+  const apiKey = runtimeEnv().GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("gemini client not configured.");
+  }
+
+  console.log(`[${getProviderLabel(input.provider)}] ${input.label}: started`);
+  input.onStarted?.();
+
+  const prompt = input.messages
+    .map((message) => `${message.role === "system" ? "System" : "User"}:\n${message.content}`)
+    .join("\n\n");
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent?key=${
+      encodeURIComponent(apiKey)
+    }`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: input.maxOutputTokens },
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Gemini request failed (${response.status}).`);
+  }
+
+  const body = await response.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("\n").trim() ?? "";
+  flushStreamBuffer(input.provider, input.label, text, input.onDelta);
+  console.log(`[${getProviderLabel(input.provider)}] ${input.label}: completed`);
+  input.onCompleted?.();
+  return text;
 }
 
 function extractJSONObject(text: string) {
@@ -154,14 +279,16 @@ export async function generateBrandAnswer(input: {
   promptRun: PromptRun;
   reportProgress?: ProgressReporter;
 }): Promise<string> {
+  const provider = providerForPromptRun(input.promptRun);
   const questionText =
     input.promptRun.promptKind === "brand_specific"
       ? interpolateBrand(input.promptRun.prompt, input.brand.name)
       : input.promptRun.prompt;
 
-  if (!getStreamingClient()) {
+  if (shouldUseMock(provider)) {
     const kind = input.promptRun.promptKind;
-    const text = `Mock perception summary for ${input.brand.name} (${kind}). "${questionText.slice(0, 90)}..."`;
+    const text =
+      `Mock ${provider} perception summary for ${input.brand.name} (${kind}). "${questionText.slice(0, 90)}..."`;
     input.reportProgress?.({
       type: "answer_started",
       brandId: input.brand.id,
@@ -211,6 +338,7 @@ Write the perception summary now.`;
 
   return createStreamedResponse({
     label: `answer ${input.promptRun.promptKind} ${input.brand.name} :: ${compactLabel(questionText)}`,
+    provider,
     model: input.promptRun.model,
     maxOutputTokens: BRAND_ANSWER_MAX_OUTPUT_TOKENS,
     onStarted: () => {
@@ -261,7 +389,8 @@ export async function judgeComparativeOutputs(input: {
   answers: AIAnswer[];
   reportProgress?: ProgressReporter;
 }): Promise<ComparativeDelta> {
-  if (!getStreamingClient()) {
+  const provider = providerForPromptRun(input.promptRun);
+  if (shouldUseMock(provider)) {
     input.reportProgress?.({
       type: "judge_started",
       prompt: input.promptRun.prompt,
@@ -289,7 +418,7 @@ export async function judgeComparativeOutputs(input: {
       shareOfVoiceByBrand,
       sentimentByBrand,
       praisedFeaturesByBrand,
-      evidence: [`Mock judge used because ${configuredProvider.toUpperCase()} is not configured; competitors expose fix-it gaps.`],
+      evidence: [`Mock judge used because ${provider.toUpperCase()} is not configured; competitors expose fix-it gaps.`],
     };
     input.reportProgress?.({
       type: "judge_delta",
@@ -367,7 +496,8 @@ Do not include commentary outside the JSON object.`;
 
   const outputText = await createStreamedResponse({
     label: `judge ${input.promptRun.promptKind} :: ${compactLabel(input.promptRun.prompt)}`,
-    model: "gpt-4.1-mini",
+    provider,
+    model: input.promptRun.model,
     maxOutputTokens: JUDGE_MAX_OUTPUT_TOKENS,
     onStarted: () => {
       input.reportProgress?.({
