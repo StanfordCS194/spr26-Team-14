@@ -59,12 +59,21 @@ export interface Mention {
   confidence: number;
 }
 
+/** A source the judge attaches to a specific comparative claim about a brand. */
+export interface Citation {
+  url: string;
+  /** The factual claim this source supports. */
+  claim: string;
+  brandId?: UUID;
+}
+
 export interface ComparativeDelta {
   promptRunId: UUID;
   shareOfVoiceByBrand: Record<UUID, number>;
   sentimentByBrand: Record<UUID, number>;
   praisedFeaturesByBrand: Record<UUID, string[]>;
   evidence: string[];
+  citations: Citation[];
 }
 
 export type GapType = "prompt_exclusion" | "feature_praise_gap" | "whitespace";

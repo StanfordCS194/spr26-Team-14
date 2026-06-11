@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Section, Stat, StatRow } from "@/components/dashboard";
+import { Section } from "@/components/dashboard";
 import { PlayIcon, PlusIcon } from "@/components/app-icons";
 import type { BusinessProfile, MonitoringHistoryPoint, MonitoringResponse } from "../types";
 
@@ -196,12 +196,6 @@ export function MonitoringPage({ profile }: { profile: BusinessProfile }) {
 
   return (
     <div className="grid gap-8">
-      <StatRow>
-        <Stat label="Stored responses" value={data.summary.totalResponses} />
-        <Stat label="Mention frequency" value={`${Math.round(data.summary.mentionFrequency * 100)}%`} />
-        <Stat label="Recommended responses" value={data.summary.recommendedResponses} />
-      </StatRow>
-
       <SentimentTrend history={data.history} />
 
       <Section
