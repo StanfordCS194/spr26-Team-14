@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { benchmarkSnapshots } from "../db/benchmark-snapshots";
 import { citationGrounding } from "../db/citation-grounding";
 import { businessProfiles } from "../db/business-profiles";
 import { monitoringPrompts } from "../db/monitoring-prompts";
@@ -73,8 +74,30 @@ businessRoutes.get("/business-profiles/:id/competitive-monitoring", (c) => {
   if (!profile) {
     return c.json({ error: "Business profile not found." }, 404);
   }
+  // Prefer the persisted benchmark snapshot (survives restart) when present;
+  // otherwise derive a benchmark from SQLite monitoring attempts.
+  const snapshot = benchmarkSnapshots.get(profile.id);
+  if (snapshot) {
+    return c.json({ hasData: true, ...snapshot });
+  }
   const windowDays = Math.max(1, Math.min(90, Number(c.req.query("windowDays") ?? 7)));
   return c.json(buildMonitoringBenchmark(profile, Number.isFinite(windowDays) ? windowDays : 7));
+});
+
+businessRoutes.get("/business-profiles/:id/benchmark-citations", (c) => {
+  const profile = businessProfiles.get(c.req.param("id"));
+  if (!profile) {
+    return c.json({ error: "Business profile not found." }, 404);
+  }
+  const citations = benchmarkSnapshots.citations(profile.id);
+  return c.json({
+    citations,
+    summary: {
+      totalCitations: citations.length,
+      judgedResponses: new Set(citations.map((citation) => citation.promptRunId)).size,
+      minimumPerResponse: 25,
+    },
+  });
 });
 
 businessRoutes.put("/business-profiles/:id/competitors", async (c) => {

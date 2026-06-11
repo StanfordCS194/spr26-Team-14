@@ -286,6 +286,7 @@ export function CompetitivePage({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           sessionId,
+          businessProfileId,
           accountBrandId: setBody.accountBrandId,
           competitorBrandIds: setBody.competitorBrandIds,
           provider: input.provider,

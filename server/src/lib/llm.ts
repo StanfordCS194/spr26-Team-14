@@ -22,13 +22,23 @@ const evidenceStrings = z
   .union([z.array(z.string()), z.string()])
   .transform((v) => (Array.isArray(v) ? v : [v]));
 
+const citationSchema = z.object({
+  url: z.string().min(1),
+  claim: z.string().min(1),
+  brandId: z.string().optional(),
+});
+
 const judgeOutputSchema = z.object({
   evidence: evidenceStrings,
   mentions: z.array(mentionSchema),
+  citations: z.array(citationSchema).default([]),
 });
 
+/** The judge must ground its comparison in at least this many cited sources. */
+const MIN_JUDGE_CITATIONS = 25;
+
 const BRAND_ANSWER_MAX_OUTPUT_TOKENS = 220;
-const JUDGE_MAX_OUTPUT_TOKENS = 900;
+const JUDGE_MAX_OUTPUT_TOKENS = 4000;
 const STREAM_FLUSH_CHARS = 140;
 
 function runtimeEnv() {
@@ -413,12 +423,24 @@ export async function judgeComparativeOutputs(input: {
           : ["innovation", "content_quality"];
     }
 
+    const citations = Array.from({ length: MIN_JUDGE_CITATIONS }, (_, index) => {
+      const answer = input.answers[index % input.answers.length]!;
+      const brandName = store.brands.get(answer.brandId)?.name ?? answer.brandId;
+      const slug = brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      return {
+        url: `https://example.com/perception/${slug}/source-${index + 1}`,
+        claim: `Mock source ${index + 1} corroborating how ${brandName} is perceived on this question.`,
+        brandId: answer.brandId,
+      };
+    });
+
     const result = {
       promptRunId: input.promptRun.id,
       shareOfVoiceByBrand,
       sentimentByBrand,
       praisedFeaturesByBrand,
       evidence: [`Mock judge used because ${provider.toUpperCase()} is not configured; competitors expose fix-it gaps.`],
+      citations,
     };
     input.reportProgress?.({
       type: "judge_delta",
@@ -459,6 +481,8 @@ export async function judgeComparativeOutputs(input: {
         "Perceived strengths implied in the text (e.g. leadership, reliability, value, innovation, trust, experience, premium, mainstream). Use lowercase snake_case; omit duplicates.",
       evidence:
         "Exactly 3 very short strings explaining comparative scoring; each string must be under 18 words and reference brand names, not brandIds. Must be an array of strings, not one paragraph string.",
+      citations:
+        `At least ${MIN_JUDGE_CITATIONS} sources that ground the comparative claims. Each citation pairs a plausible, well-formed source URL with the specific factual claim it supports about one of the brands. Spread citations across all brands; prefer reputable domains (reviews, publications, industry reports, forums).`,
     },
     outputContract: {
       format: "JSON only. No markdown fences.",
@@ -466,6 +490,8 @@ export async function judgeComparativeOutputs(input: {
         evidence: "string[]",
         mentions:
           "array of { brandId, shareOfVoice, sentiment, praisedFeatures } - one object per brand in answers, same brandIds.",
+        citations:
+          `array of at least ${MIN_JUDGE_CITATIONS} objects { url, claim, brandId } - url is an http(s) source link, claim is the factual statement it supports, brandId is one of the provided brandIds.`,
       },
     },
   };
@@ -484,13 +510,16 @@ Scoring rules (apply consistently):
 - praisedFeatures: Themes that read as advantages (leadership, reliability, value, innovation, trust, etc.).
 
 Output requirements:
-- Return a single JSON object with exactly two top-level keys: "evidence" and "mentions".
+- Return a single JSON object with exactly three top-level keys: "evidence", "mentions", and "citations".
 - "evidence" MUST be an array of strings (never a single concatenated string).
 - Evidence strings MUST use human-readable brand names, never UUIDs or brandId values.
 - Keep evidence strings short and compact.
 - "mentions" MUST have exactly one entry per provided answer, with matching brandId values.
 - shareOfVoice values must be numbers in [0,1] and must sum to 1.0 across all mentions.
 - sentiment must be in [-1,1]. praisedFeatures must be an array of strings (empty array if none).
+- "citations" MUST be an array of AT LEAST ${MIN_JUDGE_CITATIONS} objects, each { "url", "claim", "brandId" }.
+- Each citation's "url" must be a complete, plausible http(s) source link; "claim" is the specific factual statement that source supports; "brandId" must match one of the provided brandIds.
+- Distribute the citations across every brand in the panel rather than concentrating them on one brand.
 
 Do not include commentary outside the JSON object.`;
 
@@ -552,5 +581,6 @@ Do not include commentary outside the JSON object.`;
     sentimentByBrand,
     praisedFeaturesByBrand,
     evidence: parsed.evidence,
+    citations: parsed.citations,
   };
 }

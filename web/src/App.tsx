@@ -26,7 +26,6 @@ import { AdminPage } from "./pages/admin";
 import { CompetitivePage } from "./pages/competitive";
 import { MonitoringPage } from "./pages/monitoring";
 import { RecommendationsPage } from "./pages/recommendations";
-import { SourcesPage } from "./pages/sources";
 import type { BusinessProfile, BusinessProfileInput } from "./types";
 import {
   BinocularsIcon,
@@ -35,7 +34,6 @@ import {
   CheckCircleIcon,
   GearSixIcon,
   LightbulbIcon,
-  LinkSimpleIcon,
   PlusIcon,
   ShieldCheckIcon,
   TrophyIcon,
@@ -131,10 +129,10 @@ export function OnboardingForm({ onCreate }: { onCreate: (input: BusinessProfile
 
 const navItems = [
   {
-    key: "monitoring",
-    label: "Monitoring",
-    description: "AI mention frequency, sentiment, and trends.",
-    icon: ChartLineUpIcon,
+    key: "benchmarking",
+    label: "Benchmarking",
+    description: "Compare your brand against competitors in AI answers.",
+    icon: TrophyIcon,
   },
   {
     key: "accuracy",
@@ -143,22 +141,16 @@ const navItems = [
     icon: ShieldCheckIcon,
   },
   {
-    key: "benchmarking",
-    label: "Benchmarking",
-    description: "Compare your brand against competitors in AI answers.",
-    icon: TrophyIcon,
+    key: "monitoring",
+    label: "Monitoring",
+    description: "AI mention frequency, sentiment, and trends.",
+    icon: ChartLineUpIcon,
   },
   {
     key: "recommendations",
     label: "Recommendations",
     description: "Prioritized fix-it ideas from detected gaps.",
     icon: LightbulbIcon,
-  },
-  {
-    key: "sources",
-    label: "Sources",
-    description: "Reddit, publications, reviews, and other sources AI cites.",
-    icon: LinkSimpleIcon,
   },
   {
     key: "admin",
@@ -345,8 +337,6 @@ export function ProfileDashboard({
             <AccuracyPage profile={profile} />
           ) : activePage === "recommendations" ? (
             <RecommendationsPage profile={profile} />
-          ) : activePage === "sources" ? (
-            <SourcesPage profile={profile} />
           ) : activePage === "admin" ? (
             <AdminPage profile={profile} />
           ) : null}

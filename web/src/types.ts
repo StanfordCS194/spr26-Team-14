@@ -100,6 +100,25 @@ export interface CitationProviderSummary {
   citationCoverage: number | null;
 }
 
+export interface BenchmarkCitation {
+  url: string;
+  claim: string;
+  brandId: string | null;
+  brandName: string | null;
+  prompt: string | null;
+  promptKind: "brand_specific" | "domain_general" | null;
+  promptRunId: string;
+}
+
+export interface BenchmarkCitationsResponse {
+  citations: BenchmarkCitation[];
+  summary: {
+    totalCitations: number;
+    judgedResponses: number;
+    minimumPerResponse: number;
+  };
+}
+
 export type RecommendationRating = "good" | "bad";
 
 export interface RecommendationFeedback {

@@ -10,6 +10,8 @@ import {
 import { runGapAnalysis } from "../features/competitive/gap-analysis.service";
 import { refreshSourcesForBrand } from "../features/competitive/sources.service";
 import { publishGapEventsToRecommendationInputs } from "../features/fixit/signal-bridge";
+import { persistGapEventsToProfileRecommendations } from "../features/fixit/profile-recommendations";
+import { benchmarkSnapshots, type BenchmarkCitation } from "../db/benchmark-snapshots";
 
 const competitorSetSchema = z.object({
   accountBrandName: z.string().min(1),
@@ -22,6 +24,7 @@ const competitiveRunSchema = z.object({
   competitorBrandIds: z.array(z.string().min(1)).length(5),
   promptSetId: z.string().optional(),
   sessionId: z.string().min(1).optional(),
+  businessProfileId: z.string().min(1).optional(),
   provider: z.enum(["openai", "anthropic", "gemini"]).default("openai"),
   models: z.array(z.string().min(1)).min(1).default(["gpt-4.1-mini"]),
   windowStart: z.string().datetime(),
@@ -67,6 +70,30 @@ function ensureAccountBrand(name: string, businessProfileId?: string) {
   store.brands.set(brand.id, brand);
   store.businessProfileBrandIds.set(businessProfileId, brand.id);
   return brand;
+}
+
+/**
+ * Flattens the citations the judge LLM attached to comparative scoring runs.
+ * When `promptRunIds` is provided, only citations from those runs are returned
+ * (used to snapshot a single benchmark run). Most recent runs first.
+ */
+function flattenBenchmarkCitations(promptRunIds?: Set<string>): BenchmarkCitation[] {
+  const brandName = (brandId?: string) => (brandId ? store.brands.get(brandId)?.name ?? null : null);
+  return [...store.comparisons]
+    .reverse()
+    .filter((comparison) => !promptRunIds || promptRunIds.has(comparison.promptRunId))
+    .flatMap((comparison) => {
+      const promptRun = store.promptRuns.get(comparison.promptRunId);
+      return (comparison.citations ?? []).map((citation) => ({
+        url: citation.url,
+        claim: citation.claim,
+        brandId: citation.brandId ?? null,
+        brandName: brandName(citation.brandId),
+        prompt: promptRun?.prompt ?? null,
+        promptKind: promptRun?.promptKind ?? null,
+        promptRunId: comparison.promptRunId,
+      }));
+    });
 }
 
 export const competitiveRoutes = new Hono();
@@ -152,6 +179,27 @@ competitiveRoutes.post("/competitive/runs", async (c) => {
       promptRunIds: result.promptRuns.map((run) => run.id),
     });
     const { recommendationInputs, recommendations } = publishGapEventsToRecommendationInputs(gapEvents);
+
+    // Bridge the in-memory benchmark gaps into the SQLite profile_recommendations
+    // table so the Recommendations page (which reads SQLite) reflects this run.
+    const businessProfileId = body.businessProfileId
+      ?? Array.from(store.businessProfileBrandIds.entries()).find(
+        ([, brandId]) => brandId === runInput.accountBrandId,
+      )?.[0];
+    let persistedRecommendationCount = 0;
+    if (businessProfileId) {
+      const brandLabels: Record<string, string> = {};
+      for (const brandId of [runInput.accountBrandId, ...runInput.competitorBrandIds]) {
+        const name = store.brands.get(brandId)?.name;
+        if (name) brandLabels[brandId] = name;
+      }
+      persistedRecommendationCount = persistGapEventsToProfileRecommendations(
+        businessProfileId,
+        gapEvents,
+        brandLabels,
+      ).length;
+    }
+
     const accountBrand = store.brands.get(runInput.accountBrandId);
     const competitorNames = runInput.competitorBrandIds
       .map((brandId) => store.brands.get(brandId)?.name)
@@ -163,6 +211,35 @@ competitiveRoutes.post("/competitive/runs", async (c) => {
         competitorNames,
       })
       : [];
+
+    // Persist the full benchmark snapshot to SQLite so the Benchmarking and
+    // Accuracy tabs survive a server restart (the in-memory store does not).
+    let persistedSnapshot = false;
+    if (businessProfileId) {
+      const brandLabels: Record<string, string> = {};
+      for (const brandId of [runInput.accountBrandId, ...runInput.competitorBrandIds]) {
+        const name = store.brands.get(brandId)?.name;
+        if (name) brandLabels[brandId] = name;
+      }
+      const promptRunIds = new Set(result.promptRuns.map((run) => run.id));
+      benchmarkSnapshots.upsert({
+        businessProfileId,
+        snapshot: {
+          timeframe: { start: body.windowStart, end: body.windowEnd },
+          brandLabels,
+          accountBrandId: runInput.accountBrandId,
+          accountBrandName: accountBrand?.name ?? null,
+          competitorBrandIds: [...runInput.competitorBrandIds],
+          overview: buildCompetitiveOverview({ windowStart: body.windowStart, windowEnd: body.windowEnd }),
+          trends: buildCompetitiveTrends({ windowStart: body.windowStart, windowEnd: body.windowEnd }),
+          gaps: store.gapEvents.filter((event) => event.brandId === runInput.accountBrandId),
+        },
+        citations: flattenBenchmarkCitations(promptRunIds),
+        sources,
+      });
+      persistedSnapshot = true;
+    }
+
     reportProgress?.({ type: "run_completed", message: "Benchmark run completed." });
 
     return c.json({
@@ -172,6 +249,8 @@ competitiveRoutes.post("/competitive/runs", async (c) => {
       gapEvents,
       recommendationInputsCount: recommendationInputs.length,
       recommendationCount: recommendations.length,
+      persistedRecommendationCount,
+      persistedSnapshot,
       sourceCount: sources.length,
     });
   } catch (error) {
@@ -197,6 +276,24 @@ competitiveRoutes.get("/competitive/trends", (c) => {
     return c.json({ error: "windowStart and windowEnd are required ISO datetimes." }, 400);
   }
   return c.json(buildCompetitiveTrends({ windowStart, windowEnd }));
+});
+
+/**
+ * Flattens the citations the judge LLM attached to every comparative scoring
+ * run so the Citation Grounding view can show the sources behind benchmark
+ * results. Most recent runs first.
+ */
+competitiveRoutes.get("/competitive/citations", (c) => {
+  const citations = flattenBenchmarkCitations();
+
+  return c.json({
+    citations,
+    summary: {
+      totalCitations: citations.length,
+      judgedResponses: store.comparisons.length,
+      minimumPerResponse: 25,
+    },
+  });
 });
 
 competitiveRoutes.get("/competitive/gaps", (c) => {

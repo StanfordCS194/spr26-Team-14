@@ -127,6 +127,16 @@ export function runMigrations() {
       FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS benchmark_snapshots (
+      business_profile_id TEXT PRIMARY KEY,
+      snapshot_json TEXT NOT NULL,
+      citations_json TEXT NOT NULL,
+      sources_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (business_profile_id) REFERENCES business_profiles(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS source_citations (
       id TEXT PRIMARY KEY,
       business_profile_id TEXT NOT NULL,
